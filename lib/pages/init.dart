@@ -34,14 +34,12 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      currentLocationIcon =
-          await createBitmapDescriptorFromIcon(Icons.location_on);
-      destinationIcon = await createBitmapDescriptorFromIcon(Icons.flag);
+      currentLocationIcon = await createBitmapDescriptorFromIcon(Icons.navigation);
+      destinationIcon = await createBitmapDescriptorFromIcon(Icons.location_on);
       await initializeMap();
-      await fetchAndStoreEstimatedTimeOfArrival(); // Fetch and store the ETD
-      setState(() {}); // Update the UI
+      await fetchAndStoreEstimatedTimeOfArrival();
+      setState(() {});
 
-      // Start the timer to update location every second
       locationUpdateTimer = Timer.periodic(Duration(seconds: 1), (timer) async {
         await fetchCurrentLocation();
         await updateLocationInFirestore();
@@ -60,20 +58,40 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       IconData iconData) async {
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
-    final paint = Paint()..color = Colors.blue;
-    final textPainter = TextPainter(textDirection: TextDirection.ltr);
-    const iconSize = 48.0;
+    const iconSize = 64.0;
+    
+    // Add a white circle background
+    final bgPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(iconSize/2, iconSize/2), iconSize/2, bgPaint);
+    
+    // Add a colored border
+    final borderPaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawCircle(Offset(iconSize/2, iconSize/2), iconSize/2 - 1.5, borderPaint);
 
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
     textPainter.text = TextSpan(
       text: String.fromCharCode(iconData.codePoint),
       style: TextStyle(
-        fontSize: iconSize,
+        fontSize: iconSize * 0.7,
         fontFamily: iconData.fontFamily,
         color: Colors.blue,
       ),
     );
+    
     textPainter.layout();
-    textPainter.paint(canvas, const Offset(0, 0));
+    // Center the icon in the circle
+    textPainter.paint(
+      canvas, 
+      Offset(
+        (iconSize - textPainter.width) / 2,
+        (iconSize - textPainter.height) / 2
+      )
+    );
 
     final picture = pictureRecorder.endRecording();
     final image = await picture.toImage(iconSize.toInt(), iconSize.toInt());
@@ -474,7 +492,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
     
     try {
       final result = await polylinePoints.getRouteBetweenCoordinates(
-        'YOUR_API_KEY', // Replace with your actual API key
+        'AIzaSyDBRvts55sYzQ0hcPcF0qp6ApnwW-hHmYo', // Replace with your actual API key
         PointLatLng(currentPosition!.latitude, currentPosition!.longitude),
         PointLatLng(destinationPosition!.latitude, destinationPosition!.longitude),
       );
