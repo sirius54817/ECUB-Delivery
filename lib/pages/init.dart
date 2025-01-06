@@ -84,16 +84,40 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   }
 
   Future<void> initializeMap() async {
-    await fetchCurrentLocation();
-    destinationPosition =
-        await fetchCoordinatesFromPlaceName(widget.oder.address);
-    final coordinates = await fetchPolylinePoints();
-    generatePolyLineFromPoints(coordinates);
+    try {
+      await fetchCurrentLocation();
+      
+      if (currentPosition == null) {
+        debugPrint('Error: Could not get current location');
+        return;
+      }
+
+      debugPrint('Fetching coordinates for address: ${widget.oder.address}');
+      destinationPosition = await fetchCoordinatesFromPlaceName(widget.oder.address);
+      
+      if (destinationPosition == null) {
+        debugPrint('Error: Could not convert address to coordinates');
+        return;
+      }
+      
+      debugPrint('Successfully initialized map with:'
+          '\nCurrent position: $currentPosition'
+          '\nDestination position: $destinationPosition');
+
+      final coordinates = await fetchPolylinePoints();
+      if (coordinates.isNotEmpty) {
+        await generatePolyLineFromPoints(coordinates);
+      } else {
+        debugPrint('Error: Could not generate route between points');
+      }
+    } catch (e) {
+      debugPrint('Error in initializeMap: $e');
+    }
   }
 
   Future<void> fetchAndStoreEstimatedTimeOfArrival() async {
     final apiKey =
-        'AIzaSyClrhOKzru5eVbTkViOCRixNQ5nOvwep2I'; // Replace with your Google API Key
+        'AIzaSyDBRvts55sYzQ0hcPcF0qp6ApnwW-hHmYo'; // Replace with your Google API Key
     final origin = '${currentPosition!.latitude},${currentPosition!.longitude}';
     final destination =
         '${destinationPosition!.latitude},${destinationPosition!.longitude}';
@@ -396,45 +420,76 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
     debugPrint('Current position: $currentPosition');
   }
 
-  Future<LatLng?> fetchCoordinatesFromPlaceName(String placeName) async {
-    final apiKey =
-        'AIzaSyClrhOKzru5eVbTkViOCRixNQ5nOvwep2I'; // Replace with your Google API Key
-    final url =
-        'https://maps.googleapis.com/maps/api/geocode/json?address=$placeName&key=$apiKey';
-
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
+  Future<LatLng?> fetchCoordinatesFromPlaceName(String address) async {
+    try {
+      // Use a valid API key
+      final apiKey = 'AIzaSyDBRvts55sYzQ0hcPcF0qp6ApnwW-hHmYo'; // Use the same API key you're using for Distance Matrix
+      
+      // Properly encode the address for URL
+      final encodedAddress = Uri.encodeComponent(address);
+      
+      // Construct the Geocoding API URL
+      final url = 'https://maps.googleapis.com/maps/api/geocode/json'
+          '?address=$encodedAddress'
+          '&key=$apiKey'
+          '&region=in'; // Add region parameter for better results in India
+      
+      debugPrint('Fetching coordinates for address: $address');
+      
+      final response = await http.get(Uri.parse(url));
       final data = json.decode(response.body);
-      if (data['status'] == 'OK') {
-        final location = data['results'][0]['geometry']['location'];
-        return LatLng(location['lat'], location['lng']);
+      
+      debugPrint('Geocoding API response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
+          final location = data['results'][0]['geometry']['location'];
+          final lat = location['lat'] as double;
+          final lng = location['lng'] as double;
+          
+          debugPrint('Successfully converted address to coordinates: ($lat, $lng)');
+          return LatLng(lat, lng);
+        } else {
+          debugPrint('Geocoding API error: ${data['status']} - ${data['error_message'] ?? 'No results found for the address'}');
+          return null;
+        }
       } else {
-        debugPrint('Error fetching coordinates: ${data['status']}');
+        debugPrint('HTTP error ${response.statusCode}: ${response.body}');
         return null;
       }
-    } else {
-      debugPrint('Error fetching coordinates: ${response.statusCode}');
+    } catch (e, stackTrace) {
+      debugPrint('Error in fetchCoordinatesFromPlaceName: $e');
+      debugPrint('Stack trace: $stackTrace');
       return null;
     }
   }
 
   Future<List<LatLng>> fetchPolylinePoints() async {
+    if (currentPosition == null || destinationPosition == null) {
+      debugPrint('Error: Current or destination position is null');
+      return [];
+    }
+
     final polylinePoints = PolylinePoints();
+    
+    try {
+      final result = await polylinePoints.getRouteBetweenCoordinates(
+        'YOUR_API_KEY', // Replace with your actual API key
+        PointLatLng(currentPosition!.latitude, currentPosition!.longitude),
+        PointLatLng(destinationPosition!.latitude, destinationPosition!.longitude),
+      );
 
-    final result = await polylinePoints.getRouteBetweenCoordinates(
-      'AIzaSyClrhOKzru5eVbTkViOCRixNQ5nOvwep2I', // Replace with your Maps API Key
-      PointLatLng(currentPosition!.latitude, currentPosition!.longitude),
-      PointLatLng(
-          destinationPosition!.latitude, destinationPosition!.longitude),
-    );
-
-    if (result.points.isNotEmpty) {
-      debugPrint('Polyline points fetched successfully');
-      return result.points
-          .map((point) => LatLng(point.latitude, point.longitude))
-          .toList();
-    } else {
-      debugPrint('Error fetching polyline points: ${result.errorMessage}');
+      if (result.points.isNotEmpty) {
+        debugPrint('Polyline points fetched successfully');
+        return result.points
+            .map((point) => LatLng(point.latitude, point.longitude))
+            .toList();
+      } else {
+        debugPrint('Error fetching polyline points: ${result.errorMessage}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Error in fetchPolylinePoints: $e');
       return [];
     }
   }
