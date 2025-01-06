@@ -76,4 +76,3 @@ For support, email support@ecubdelivery.com or join our Slack channel.
 
 ---
 Made with ❤️ by the ECUB Team for PHEMESOFT
-```
