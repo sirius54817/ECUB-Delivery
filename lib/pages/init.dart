@@ -29,6 +29,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   BitmapDescriptor? currentLocationIcon;
   BitmapDescriptor? destinationIcon;
   String? eta; // Add a variable to store the ETA
+  String? distance; // Add this line to store the distance
 
   @override
   void initState() {
@@ -134,28 +135,27 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   }
 
   Future<void> fetchAndStoreEstimatedTimeOfArrival() async {
-    final apiKey =
-        'AIzaSyDBRvts55sYzQ0hcPcF0qp6ApnwW-hHmYo'; // Replace with your Google API Key
+    final apiKey = 'AIzaSyDBRvts55sYzQ0hcPcF0qp6ApnwW-hHmYo';
     final origin = '${currentPosition!.latitude},${currentPosition!.longitude}';
-    final destination =
-        '${destinationPosition!.latitude},${destinationPosition!.longitude}';
-    final url =
-        'https://maps.googleapis.com/maps/api/distancematrix/json?origins=$origin&destinations=$destination&key=$apiKey';
+    final destination = '${destinationPosition!.latitude},${destinationPosition!.longitude}';
+    final url = 'https://maps.googleapis.com/maps/api/distancematrix/json?origins=$origin&destinations=$destination&key=$apiKey';
 
     final response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      debugPrint('API Response: $data'); // Debug print to check API response
+      debugPrint('API Response: $data');
       if (data['status'] == 'OK') {
         final elements = data['rows'][0]['elements'][0];
         if (elements['status'] == 'OK') {
           final duration = elements['duration']['text'];
+          final distanceText = elements['distance']['text'];
           if (mounted) {
             setState(() {
               eta = duration;
+              distance = distanceText;
             });
           }
-          await storeETDInFirestore(duration); // Store ETD in Firestore
+          await storeETDInFirestore(duration, distanceText);
         } else {
           debugPrint('Error fetching ETA: ${elements['status']}');
         }
@@ -167,22 +167,24 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
     }
   }
 
-  Future<void> storeETDInFirestore(String etd) async {
+  Future<void> storeETDInFirestore(String etd, String distance) async {
     try {
       final orderRef = FirebaseFirestore.instance
           .collection('orders')
-          .doc(widget.oder.orderId); // Using orderId which is actually itemId
+          .doc(widget.oder.orderId);
 
-      // Check if the document exists
       final docSnapshot = await orderRef.get();
       if (!docSnapshot.exists) {
         throw 'Document with itemId ${widget.oder.orderId} does not exist';
       }
 
-      await orderRef.update({'etd': etd});
-      debugPrint('ETD stored in Firestore successfully');
+      await orderRef.update({
+        'etd': etd,
+        'distance': distance,
+      });
+      debugPrint('ETD and distance stored in Firestore successfully');
     } catch (e) {
-      debugPrint('Error storing ETD in Firestore: $e');
+      debugPrint('Error storing ETD and distance in Firestore: $e');
     }
   }
 
@@ -372,7 +374,8 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                     Text('Customer Name: ${widget.oder.customerName}'),
                     Text('Item Price: ${widget.oder.itemPrice}'),
                     Text('Address: ${widget.oder.address}'),
-                    if (eta != null) Text('ETD: $eta'), // Display the ETD
+                    if (eta != null) Text('Estimated Time: $eta'),
+                    if (distance != null) Text('Distance: $distance'),
                     const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,

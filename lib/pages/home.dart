@@ -8,6 +8,7 @@ import 'package:ecub_delivery/pages/login.dart';
 import 'package:ecub_delivery/pages/profile.dart';
 import 'package:ecub_delivery/services/auth_service.dart';
 import 'package:ecub_delivery/services/user_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OrdersSam {
   final String orderId;
@@ -43,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<OrdersSam> _orders = [];
   bool _isLoading = true;
   bool _loading = true;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -102,6 +104,41 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _refreshOrders() async {
+    if (_isRefreshing) return;
+
+    setState(() {
+      _isRefreshing = true;
+    });
+
+    try {
+      // Force a refresh of the orders stream
+      await FirebaseFirestore.instance.collection('orders').get();
+      
+      // Optional: Show a success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Orders refreshed'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    } catch (e) {
+      // Show error message if refresh fails
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to refresh orders'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
     }
   }
 
@@ -186,6 +223,22 @@ class _HomeScreenState extends State<HomeScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
+          actions: [
+            IconButton(
+              icon: _isRefreshing 
+                ? SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Icon(Icons.refresh),
+              onPressed: _refreshOrders,
+              tooltip: 'Refresh Orders',
+            ),
+          ],
         ),
         backgroundColor: Colors.purple[50],
         body: Padding(
