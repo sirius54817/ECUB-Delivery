@@ -1,16 +1,79 @@
-# ecub_delivery
+# 🚚 ECUB Delivery
 
-A new Flutter project.
+## 🌟 Overview
+ECUB Delivery is a modern Flutter-based delivery management application that helps connect delivery agents with customers. Track orders, manage deliveries, and navigate efficiently - all in one place!
 
-## Getting Started
+## ✨ Features
+- 🗺️ Real-time GPS tracking and navigation
+- 📦 Order management system
+- 🔔 Push notifications for new orders
+- 📱 Cross-platform support (iOS & Android)
+- 🚗 Turn-by-turn navigation
+- 💰 Automatic salary calculation
+- 📊 Delivery analytics
 
-This project is a starting point for a Flutter application.
+## 🛠️ Tech Stack
+- 📱 Flutter
+- 🔥 Firebase
+- 🗺️ Google Maps
+- 📍 Location Services
+- 🔐 Firebase Authentication
+- 💾 Cloud Firestore
 
-A few resources to get you started if this is your first Flutter project:
+## 🚀 Getting Started
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### Prerequisites
+- Flutter SDK (^3.5.0)
+- Android Studio / Xcode
+- Firebase project setup
+- Google Maps API key
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Installation
+1. Clone the repository
+```bash
+git clone https://github.com/yourusername/ecub_delivery.git
+```
+
+2. Install dependencies
+```bash
+flutter pub get
+```
+
+3. Update Google Maps API key in:
+```xml:android/app/src/main/AndroidManifest.xml
+startLine: 14
+endLine: 16
+```
+
+4. Run the app
+```bash
+flutter run
+```
+
+## 📱 Environment Setup
+- Minimum Android SDK: 23
+- Target Android SDK: 34
+- iOS Deployment Target: 12.0
+- Flutter: Latest stable version
+
+## 🔑 Configuration
+Make sure to set up your Firebase configuration and add necessary API keys in the appropriate configuration files.
+
+## 📄 License
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🤝 Contributing
+Contributions are welcome! Feel free to submit a Pull Request.
+
+## 📞 Support
+For support, email support@ecubdelivery.com or join our Slack channel.
+
+## 🙏 Acknowledgments
+- Google Maps Platform
+- Firebase Team
+- Flutter Community
+- All our amazing contributors!
+
+---
+Made with ❤️ by the ECUB Team for PHEMESOFT
+```
