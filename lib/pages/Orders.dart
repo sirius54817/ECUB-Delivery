@@ -91,11 +91,11 @@ class _OrdersPageState extends State<OrdersPage> {
         child: Container(
           margin: EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.purple[700] : Colors.white,
+            color: isSelected ? Colors.blue[700] : Colors.white,
             borderRadius: BorderRadius.circular(25),
             boxShadow: [
               BoxShadow(
-                color: Colors.purple[200]!.withOpacity(0.3),
+                color: Colors.blue[200]!.withOpacity(0.3),
                 spreadRadius: 1,
                 blurRadius: 4,
                 offset: Offset(0, 2),
@@ -109,14 +109,14 @@ class _OrdersPageState extends State<OrdersPage> {
             children: [
               Icon(
                 index == 0 ? Icons.delivery_dining : Icons.check_circle,
-                color: isSelected ? Colors.white : Colors.purple[700],
+                color: isSelected ? Colors.white : Colors.blue[700],
                 size: 20,
               ),
               SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.purple[900],
+                  color: isSelected ? Colors.white : Colors.blue[900],
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
@@ -131,7 +131,7 @@ class _OrdersPageState extends State<OrdersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.purple[50],
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         toolbarHeight: 80,
@@ -142,7 +142,7 @@ class _OrdersPageState extends State<OrdersPage> {
             Text(
               'ECUB Delivery',
               style: TextStyle(
-                color: Colors.purple[900],
+                color: Colors.blue[900],
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -150,14 +150,14 @@ class _OrdersPageState extends State<OrdersPage> {
             Text(
               ' • ',
               style: TextStyle(
-                color: Colors.purple[300],
+                color: Colors.blue[300],
                 fontSize: 22,
               ),
             ),
             Text(
               'Orders',
               style: TextStyle(
-                color: Colors.purple[700],
+                color: Colors.blue[700],
                 fontSize: 20,
                 fontWeight: FontWeight.w500,
               ),
@@ -179,7 +179,7 @@ class _OrdersPageState extends State<OrdersPage> {
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(
-              color: Colors.purple[700],
+              color: Colors.blue[700],
             ))
           : _orders.isEmpty
               ? Center(
@@ -191,13 +191,13 @@ class _OrdersPageState extends State<OrdersPage> {
                           ? Icons.delivery_dining 
                           : Icons.check_circle,
                         size: 64,
-                        color: Colors.purple[200],
+                        color: Colors.blue[200],
                       ),
                       SizedBox(height: 16),
                       Text(
                         'No ${_selectedIndex == 0 ? "in-transit" : "completed"} orders',
                         style: TextStyle(
-                          color: Colors.purple[900],
+                          color: Colors.blue[900],
                           fontSize: 16,
                         ),
                       ),
@@ -222,7 +222,7 @@ class _OrdersPageState extends State<OrdersPage> {
                             end: Alignment.centerRight,
                             colors: [
                               Colors.white,
-                              Colors.purple[50]!.withOpacity(0.3),
+                              Colors.blue[50]!.withOpacity(0.3),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(12),
@@ -232,19 +232,19 @@ class _OrdersPageState extends State<OrdersPage> {
                           leading: Container(
                             padding: EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.purple[50],
+                              color: Colors.green[50],
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
                               order['isVeg'] == true ? Icons.eco : Icons.restaurant,
-                              color: Colors.purple[700],
+                              color: Colors.green[700],
                             ),
                           ),
                           title: Text(
                             order['itemName'] ?? 'No Name',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.purple[900],
+                              color: Colors.blue[900],
                             ),
                           ),
                           subtitle: Column(
@@ -258,7 +258,7 @@ class _OrdersPageState extends State<OrdersPage> {
                           ),
                           trailing: Icon(
                             Icons.arrow_forward_ios,
-                            color: Colors.purple[700],
+                            color: Colors.blue[700],
                             size: 20,
                           ),
                           onTap: () {

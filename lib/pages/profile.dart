@@ -16,12 +16,12 @@ class ProfilePage extends StatelessWidget {
           ),
           title: Row(
             children: [
-              Icon(Icons.logout, color: Colors.purple[700]),
+              Icon(Icons.logout, color: Colors.blue[700]),
               SizedBox(width: 10),
               Text(
                 'Logout',
                 style: TextStyle(
-                  color: Colors.purple[900],
+                  color: Colors.blue[900],
                   fontSize: 20,
                 ),
               ),
@@ -81,7 +81,7 @@ class ProfilePage extends StatelessWidget {
             Text(
               'ECUB Delivery',
               style: TextStyle(
-                color: Colors.purple[900],
+                color: Colors.blue[900],
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -89,14 +89,14 @@ class ProfilePage extends StatelessWidget {
             Text(
               ' • ',
               style: TextStyle(
-                color: Colors.purple[300],
+                color: Colors.blue[300],
                 fontSize: 22,
               ),
             ),
             Text(
               'Profile',
               style: TextStyle(
-                color: Colors.purple[700],
+                color: Colors.blue[700],
                 fontSize: 20,
                 fontWeight: FontWeight.w500,
               ),
@@ -104,13 +104,13 @@ class ProfilePage extends StatelessWidget {
           ],
         ),
       ),
-      backgroundColor: Colors.purple[50],
+      backgroundColor: Colors.white,
       body: FutureBuilder<Map<String, dynamic>?>(
         future: _userService.fetchUserData(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator(
-              color: Colors.purple[700],
+              color: Colors.blue[700],
             ));
           } else if (snapshot.hasError) {
             return Center(
@@ -142,16 +142,16 @@ class ProfilePage extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Colors.purple[50]!,
-                          Colors.purple[100]!,
-                          Colors.purple[200]!.withOpacity(0.5),
+                          Colors.blue[50]!,
+                          Colors.blue[100]!,
+                          Colors.blue[200]!.withOpacity(0.5),
                         ],
                         stops: const [0.0, 0.6, 1.0],
                       ),
                       borderRadius: BorderRadius.circular(15),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.purple[200]!.withOpacity(0.3),
+                          color: Colors.blue[200]!.withOpacity(0.3),
                           spreadRadius: 2,
                           blurRadius: 8,
                           offset: Offset(0, 2),
@@ -162,7 +162,7 @@ class ProfilePage extends StatelessWidget {
                       children: [
                         CircleAvatar(
                           radius: 50,
-                          backgroundColor: Colors.purple[100],
+                          backgroundColor: Colors.blue[100],
                           backgroundImage: AssetImage('assets/images/man.jpeg'),
                         ),
                         SizedBox(height: 15),
@@ -171,7 +171,7 @@ class ProfilePage extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.purple[900],
+                            color: Colors.blue[900],
                           ),
                         ),
                         SizedBox(height: 8),
@@ -181,7 +181,7 @@ class ProfilePage extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.purple[700],
+                            color: Colors.blue[700],
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -205,10 +205,16 @@ class ProfilePage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(15),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.purple[100]!.withOpacity(0.2),
-                          spreadRadius: 2,
-                          blurRadius: 8,
+                          color: Colors.grey[300]!,
+                          offset: Offset(0, 4),
+                          blurRadius: 12,
+                          spreadRadius: 0,
+                        ),
+                        BoxShadow(
+                          color: Colors.grey[200]!,
                           offset: Offset(0, 2),
+                          blurRadius: 6,
+                          spreadRadius: -2,
                         ),
                       ],
                     ),
@@ -219,13 +225,13 @@ class ProfilePage extends StatelessWidget {
                           label: "Phone",
                           value: userData['phone'] ?? 'Not available',
                         ),
-                        Divider(color: Colors.purple[100]),
+                        Divider(color: Colors.blue[100]),
                         ProfileItem(
                           icon: Icons.mail,
                           label: "Email",
                           value: userData['email'] ?? 'Not available',
                         ),
-                        Divider(color: Colors.purple[100]),
+                        Divider(color: Colors.blue[100]),
                         ProfileItem(
                           icon: Icons.location_on,
                           label: "Location",
@@ -292,10 +298,10 @@ class ProfileItem extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.purple[50],
+              color: Colors.blue[50],
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: Colors.purple[700], size: 20),
+            child: Icon(icon, color: Colors.blue[700], size: 20),
           ),
           SizedBox(width: 15),
           Column(
@@ -312,7 +318,7 @@ class ProfileItem extends StatelessWidget {
                 value,
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.purple[900],
+                  color: Colors.blue[900],
                   fontWeight: FontWeight.w500,
                 ),
               ),

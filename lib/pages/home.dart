@@ -269,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               'ECUB Delivery',
               style: TextStyle(
-                color: Colors.purple[900],
+                color: Colors.blue[900],
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -277,14 +277,14 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               ' • ',
               style: TextStyle(
-                color: Colors.purple[300],
+                color: Colors.blue[300],
                 fontSize: 22,
               ),
             ),
             Text(
               _user?['name'] ?? 'Loading...',
               style: TextStyle(
-                color: Colors.purple[700],
+                color: Colors.blue[700],
                 fontSize: 20,
                 fontWeight: FontWeight.w500,
               ),
@@ -298,17 +298,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 24,
                   height: 24,
                   child: CircularProgressIndicator(
-                    color: Colors.purple[700],
+                    color: Colors.blue[700],
                     strokeWidth: 2,
                   ),
                 )
-              : Icon(Icons.refresh, color: Colors.purple[700]),
+              : Icon(Icons.refresh, color: Colors.blue[700]),
             onPressed: _refreshOrders,
             tooltip: 'Refresh Orders',
           ),
         ],
       ),
-      backgroundColor: Colors.purple[50],
+      backgroundColor: Colors.white,
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -324,16 +324,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.purple[50]!,
-                      Colors.purple[100]!,
-                      Colors.purple[200]!.withOpacity(0.5),
+                      Colors.blue[50]!,
+                      Colors.blue[100]!,
+                      Colors.blue[200]!.withOpacity(0.5),
                     ],
                     stops: const [0.0, 0.6, 1.0],
                   ),
                   borderRadius: BorderRadius.circular(15),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.purple[200]!.withOpacity(0.3),
+                      color: Colors.blue[200]!.withOpacity(0.3),
                       spreadRadius: 2,
                       blurRadius: 8,
                       offset: Offset(0, 2),
@@ -349,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Icon(
                         Icons.delivery_dining,
                         size: 120,
-                        color: Colors.purple[200]!.withOpacity(0.3),
+                        color: Colors.blue[200]!.withOpacity(0.3),
                       ),
                     ),
                     // Content
@@ -358,12 +358,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.today, color: Colors.purple[700]),
+                            Icon(Icons.today, color: Colors.blue[700]),
                             SizedBox(width: 8),
                             Text(
                               'Today',
                               style: TextStyle(
-                                color: Colors.purple[900],
+                                color: Colors.blue[900],
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -373,12 +373,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         SizedBox(height: 15),
                         Row(
                           children: [
-                            Icon(Icons.account_balance_wallet, color: Colors.purple[700]),
+                            Icon(Icons.account_balance_wallet, color: Colors.blue[700]),
                             SizedBox(width: 8),
                             Text(
                               'Earnings: ₹${_user?['salary'] ?? 'Loading...'}',
                               style: TextStyle(
-                                color: Colors.purple[900],
+                                color: Colors.blue[900],
                                 fontSize: 22,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -388,12 +388,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         SizedBox(height: 10),
                         Row(
                           children: [
-                            Icon(Icons.delivery_dining, color: Colors.purple[700]),
+                            Icon(Icons.delivery_dining, color: Colors.blue[700]),
                             SizedBox(width: 8),
                             Text(
                               'Rides: ${_user?['rides'] ?? 'Loading...'}',
                               style: TextStyle(
-                                color: Colors.purple[900],
+                                color: Colors.blue[900],
                                 fontSize: 18,
                               ),
                             ),
@@ -414,18 +414,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     end: Alignment.bottomRight,
                     colors: [
                       Colors.white,
-                      Colors.purple[50]!,
-                      Colors.purple[100]!.withOpacity(0.3),
+                      Colors.white!,
+                      Colors.white!.withOpacity(0.5),
                     ],
                     stops: const [0.0, 0.7, 1.0],
                   ),
                   borderRadius: BorderRadius.circular(15),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.purple[100]!.withOpacity(0.2),
-                      spreadRadius: 2,
-                      blurRadius: 8,
+                      color: Colors.grey[300]!,
+                      offset: Offset(0, 4),
+                      blurRadius: 12,
+                      spreadRadius: 0,
+                    ),
+                    BoxShadow(
+                      color: Colors.grey[200]!,
                       offset: Offset(0, 2),
+                      blurRadius: 6,
+                      spreadRadius: -2,
                     ),
                   ],
                 ),
@@ -434,12 +440,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.list_alt, color: Colors.purple[700]),
+                        Icon(Icons.list_alt, color: Colors.blue[700]),
                         SizedBox(width: 8),
                         Text(
                           'Orders',
                           style: TextStyle(
-                            color: Colors.purple[900],
+                            color: Colors.blue[900],
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
@@ -455,9 +461,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               itemBuilder: (context, index) {
                                 OrdersSam order = _orders[index];
                                 return Card(
-                                  margin:
-                                      const EdgeInsets.symmetric(vertical: 5),
-                                  elevation: 2,
+                                  margin: const EdgeInsets.symmetric(vertical: 5),
+                                  elevation: 0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -468,22 +473,48 @@ class _HomeScreenState extends State<HomeScreen> {
                                         end: Alignment.centerRight,
                                         colors: [
                                           Colors.white,
-                                          Colors.purple[50]!.withOpacity(0.3),
+                                          Colors.blue[50]!.withOpacity(0.3),
                                         ],
                                       ),
                                       borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.grey[300]!,
+                                          offset: Offset(0, 3),
+                                          blurRadius: 8,
+                                          spreadRadius: -2,
+                                        ),
+                                        BoxShadow(
+                                          color: Colors.grey[200]!,
+                                          offset: Offset(0, 1),
+                                          blurRadius: 4,
+                                          spreadRadius: -1,
+                                        ),
+                                      ],
                                     ),
                                     child: ListTile(
                                       contentPadding: const EdgeInsets.all(12),
-                                      leading: Icon(
-                                        order.isVeg ? Icons.eco : Icons.restaurant,
-                                        color: Colors.purple[700],
+                                      leading: Container(
+                                        padding: EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: order.isVeg ? Colors.green[50] : Colors.orange[50],
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: order.isVeg ? Colors.green[100]! : Colors.orange[100]!,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          order.isVeg ? Icons.eco : Icons.restaurant,
+                                          color: order.isVeg ? Colors.green[700] : Colors.orange[700],
+                                          size: 20,
+                                        ),
                                       ),
                                       title: Text(
                                         '${order.itemName} (${order.itemCount}x)',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.purple[900],
+                                          color: Colors.blue[900],
                                         ),
                                       ),
                                       subtitle: Column(
@@ -495,7 +526,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           Text(
                                             'Status: ${order.status == "completed" ? "Order to be delivered" : "Completed"}',
                                             style: TextStyle(
-                                              color: Colors.purple[700],
+                                              color: Colors.blue[700],
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
@@ -503,7 +534,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                       trailing: Icon(
                                         Icons.arrow_forward_ios,
-                                        color: Colors.purple[700],
+                                        color: Colors.blue[700],
                                         size: 20,
                                       ),
                                       onTap: () {
