@@ -67,14 +67,39 @@ class _EarningsPageState extends State<EarningsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('My Earnings'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _fetchDeliveryHistory,
-          ),
-        ],
+        backgroundColor: Colors.white,
+        toolbarHeight: 80,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            Text(
+              'ECUB Delivery',
+              style: TextStyle(
+                color: Colors.purple[900],
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              ' • ',
+              style: TextStyle(
+                color: Colors.purple[300],
+                fontSize: 22,
+              ),
+            ),
+            Text(
+              'Earnings',
+              style: TextStyle(
+                color: Colors.purple[700],
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
+      backgroundColor: Colors.purple[50],
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : Column(

@@ -133,25 +133,41 @@ class _OrdersPageState extends State<OrdersPage> {
     return Scaffold(
       backgroundColor: Colors.purple[50],
       appBar: AppBar(
-        elevation: 0,
         backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Colors.purple[700]),
-          onPressed: () => Navigator.pop(context),
+        toolbarHeight: 80,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            Text(
+              'ECUB Delivery',
+              style: TextStyle(
+                color: Colors.purple[900],
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              ' • ',
+              style: TextStyle(
+                color: Colors.purple[300],
+                fontSize: 22,
+              ),
+            ),
+            Text(
+              'Orders',
+              style: TextStyle(
+                color: Colors.purple[700],
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
-        title: Text(
-          'Orders',
-          style: TextStyle(
-            color: Colors.purple[900],
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      body: Column(
-        children: [
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50),
+          child: Container(
+            color: Colors.white,
             child: Row(
               children: [
                 _buildTabButton(0, 'In Transit'),
@@ -159,109 +175,107 @@ class _OrdersPageState extends State<OrdersPage> {
               ],
             ),
           ),
-          Expanded(
-            child: _isLoading
-                ? Center(child: CircularProgressIndicator(
-                    color: Colors.purple[700],
-                  ))
-                : _orders.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _selectedIndex == 0 
-                                ? Icons.delivery_dining 
-                                : Icons.check_circle,
-                              size: 64,
-                              color: Colors.purple[200],
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'No ${_selectedIndex == 0 ? "in-transit" : "completed"} orders',
-                              style: TextStyle(
-                                color: Colors.purple[900],
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: EdgeInsets.all(16),
-                        itemCount: _orders.length,
-                        itemBuilder: (context, index) {
-                          final order = _orders[index];
-                          return Card(
-                            margin: EdgeInsets.only(bottom: 12),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                  colors: [
-                                    Colors.white,
-                                    Colors.purple[50]!.withOpacity(0.3),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListTile(
-                                contentPadding: EdgeInsets.all(16),
-                                leading: Container(
-                                  padding: EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.purple[50],
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(
-                                    order['isVeg'] == true ? Icons.eco : Icons.restaurant,
-                                    color: Colors.purple[700],
-                                  ),
-                                ),
-                                title: Text(
-                                  order['itemName'] ?? 'No Name',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.purple[900],
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SizedBox(height: 4),
-                                    Text('Price: ₹${order['itemPrice'] ?? 'N/A'}'),
-                                    Text('Customer: ${order['userId'] ?? 'N/A'}'),
-                                    Text('Address: ${order['address'] ?? 'N/A'}'),
-                                  ],
-                                ),
-                                trailing: Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: Colors.purple[700],
-                                  size: 20,
-                                ),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => GoogleMapPage(
-                                        oder: OrdersSam.fromMap(order),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-          ),
-        ],
+        ),
       ),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(
+              color: Colors.purple[700],
+            ))
+          : _orders.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _selectedIndex == 0 
+                          ? Icons.delivery_dining 
+                          : Icons.check_circle,
+                        size: 64,
+                        color: Colors.purple[200],
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'No ${_selectedIndex == 0 ? "in-transit" : "completed"} orders',
+                        style: TextStyle(
+                          color: Colors.purple[900],
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: EdgeInsets.all(16),
+                  itemCount: _orders.length,
+                  itemBuilder: (context, index) {
+                    final order = _orders[index];
+                    return Card(
+                      margin: EdgeInsets.only(bottom: 12),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              Colors.white,
+                              Colors.purple[50]!.withOpacity(0.3),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          contentPadding: EdgeInsets.all(16),
+                          leading: Container(
+                            padding: EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.purple[50],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              order['isVeg'] == true ? Icons.eco : Icons.restaurant,
+                              color: Colors.purple[700],
+                            ),
+                          ),
+                          title: Text(
+                            order['itemName'] ?? 'No Name',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple[900],
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(height: 4),
+                              Text('Price: ₹${order['itemPrice'] ?? 'N/A'}'),
+                              Text('Customer: ${order['userId'] ?? 'N/A'}'),
+                              Text('Address: ${order['address'] ?? 'N/A'}'),
+                            ],
+                          ),
+                          trailing: Icon(
+                            Icons.arrow_forward_ios,
+                            color: Colors.purple[700],
+                            size: 20,
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => GoogleMapPage(
+                                  oder: OrdersSam.fromMap(order),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

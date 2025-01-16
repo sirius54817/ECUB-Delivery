@@ -8,19 +8,36 @@ class ProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
         backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Colors.purple[700]),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          "Profile",
-          style: TextStyle(
-            color: Colors.purple[900],
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+        toolbarHeight: 80,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            Text(
+              'ECUB Delivery',
+              style: TextStyle(
+                color: Colors.purple[900],
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              ' • ',
+              style: TextStyle(
+                color: Colors.purple[300],
+                fontSize: 22,
+              ),
+            ),
+            Text(
+              'Profile',
+              style: TextStyle(
+                color: Colors.purple[700],
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
       backgroundColor: Colors.purple[50],

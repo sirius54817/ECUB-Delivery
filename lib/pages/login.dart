@@ -3,6 +3,7 @@ import 'package:ecub_delivery/services/auth_service.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:ecub_delivery/pages/navigation.dart';
 
 class Login extends StatelessWidget {
   Login({super.key});
@@ -152,6 +153,10 @@ class Login extends StatelessWidget {
             email: _emailController.text,
             password: _passwordController.text,
             context: context);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MainNavigation()),
+        );
       },
       child: const Text("Sign In",
           style: TextStyle(

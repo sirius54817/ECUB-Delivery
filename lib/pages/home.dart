@@ -259,351 +259,275 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        drawer: Drawer(
-          backgroundColor: const Color.fromARGB(255, 240, 240, 240),
-          child: ListView(
-            padding: const EdgeInsets.all(0),
-            children: [
-              DrawerHeader(
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        toolbarHeight: 80,
+        elevation: 0,
+        title: Row(
+          children: [
+            Text(
+              'ECUB Delivery',
+              style: TextStyle(
+                color: Colors.purple[900],
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              ' • ',
+              style: TextStyle(
+                color: Colors.purple[300],
+                fontSize: 22,
+              ),
+            ),
+            Text(
+              _user?['name'] ?? 'Loading...',
+              style: TextStyle(
+                color: Colors.purple[700],
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: _isRefreshing 
+              ? SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.purple[700],
+                    strokeWidth: 2,
+                  ),
+                )
+              : Icon(Icons.refresh, color: Colors.purple[700]),
+            onPressed: _refreshOrders,
+            tooltip: 'Refresh Orders',
+          ),
+        ],
+      ),
+      backgroundColor: Colors.purple[50],
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_loading)
+              Center(child: CircularProgressIndicator())
+            else
+              Container(
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.purple[200],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 45,
-                      backgroundImage: _user?['photoURL'] != null
-                          ? NetworkImage(_user!['photoURL'])
-                          : AssetImage('assets/images/man.jpeg')
-                              as ImageProvider,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.purple[50]!,
+                      Colors.purple[100]!,
+                      Colors.purple[200]!.withOpacity(0.5),
+                    ],
+                    stops: const [0.0, 0.6, 1.0],
+                  ),
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.purple[200]!.withOpacity(0.3),
+                      spreadRadius: 2,
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _user?['name'] ?? 'Loading...',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    // Watermark icon
+                    Positioned(
+                      top: -20,
+                      right: -20,
+                      child: Icon(
+                        Icons.delivery_dining,
+                        size: 120,
+                        color: Colors.purple[200]!.withOpacity(0.3),
                       ),
+                    ),
+                    // Content
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.today, color: Colors.purple[700]),
+                            SizedBox(width: 8),
+                            Text(
+                              'Today',
+                              style: TextStyle(
+                                color: Colors.purple[900],
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 15),
+                        Row(
+                          children: [
+                            Icon(Icons.account_balance_wallet, color: Colors.purple[700]),
+                            SizedBox(width: 8),
+                            Text(
+                              'Earnings: ₹${_user?['salary'] ?? 'Loading...'}',
+                              style: TextStyle(
+                                color: Colors.purple[900],
+                                fontSize: 22,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Icon(Icons.delivery_dining, color: Colors.purple[700]),
+                            SizedBox(width: 8),
+                            Text(
+                              'Rides: ${_user?['rides'] ?? 'Loading...'}',
+                              style: TextStyle(
+                                color: Colors.purple[900],
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              _buildDrawerItem(Icons.home, 'Home', () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HomeScreen()),
-                );
-              }),
-              _buildDrawerItem(Icons.person, 'Profile', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ProfilePage()),
-                );
-              }),
-              _buildDrawerItem(Icons.currency_rupee, 'My Earnings', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => EarningsPage()),
-                );
-              }),
-              _buildDrawerItem(Icons.card_travel, 'Orders', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => OrdersPage()),
-                );
-              }),
-              _buildDrawerItem(Icons.logout, 'Logout', () async {
-                await AuthService().signout(context: context);
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => Login()),
-                );
-              }),
-            ],
-          ),
-        ),
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          toolbarHeight: 80,
-          elevation: 0,
-          title: Row(
-            children: [
-              Text(
-                'ECUB Delivery',
-                style: TextStyle(
-                  color: Colors.purple[900],
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                ' • ',
-                style: TextStyle(
-                  color: Colors.purple[300],
-                  fontSize: 22,
-                ),
-              ),
-              Text(
-                _user?['name'] ?? 'Loading...',
-                style: TextStyle(
-                  color: Colors.purple[700],
-                  fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: _isRefreshing 
-                ? SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.purple[700],
-                      strokeWidth: 2,
+            const SizedBox(height: 20),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white,
+                      Colors.purple[50]!,
+                      Colors.purple[100]!.withOpacity(0.3),
+                    ],
+                    stops: const [0.0, 0.7, 1.0],
+                  ),
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.purple[100]!.withOpacity(0.2),
+                      spreadRadius: 2,
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
                     ),
-                  )
-                : Icon(Icons.refresh, color: Colors.purple[700]),
-              onPressed: _refreshOrders,
-              tooltip: 'Refresh Orders',
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.list_alt, color: Colors.purple[700]),
+                        SizedBox(width: 8),
+                        Text(
+                          'Orders',
+                          style: TextStyle(
+                            color: Colors.purple[900],
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: _isLoading
+                          ? Center(child: CircularProgressIndicator())
+                          : ListView.builder(
+                              itemCount: _orders.length,
+                              itemBuilder: (context, index) {
+                                OrdersSam order = _orders[index];
+                                return Card(
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 5),
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                        colors: [
+                                          Colors.white,
+                                          Colors.purple[50]!.withOpacity(0.3),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: ListTile(
+                                      contentPadding: const EdgeInsets.all(12),
+                                      leading: Icon(
+                                        order.isVeg ? Icons.eco : Icons.restaurant,
+                                        color: Colors.purple[700],
+                                      ),
+                                      title: Text(
+                                        '${order.itemName} (${order.itemCount}x)',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.purple[900],
+                                        ),
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Customer: ${order.customerName}'),
+                                          Text('Price: ₹${order.itemPrice}'),
+                                          Text('Address: ${order.address}'),
+                                          Text(
+                                            'Status: ${order.status == "completed" ? "Order to be delivered" : "Completed"}',
+                                            style: TextStyle(
+                                              color: Colors.purple[700],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      trailing: Icon(
+                                        Icons.arrow_forward_ios,
+                                        color: Colors.purple[700],
+                                        size: 20,
+                                      ),
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                GoogleMapPage(oder: order),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
-        backgroundColor: Colors.purple[50],
-        body: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_loading)
-                Center(child: CircularProgressIndicator())
-              else
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.purple[50]!,
-                        Colors.purple[100]!,
-                        Colors.purple[200]!.withOpacity(0.5),
-                      ],
-                      stops: const [0.0, 0.6, 1.0],
-                    ),
-                    borderRadius: BorderRadius.circular(15),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.purple[200]!.withOpacity(0.3),
-                        spreadRadius: 2,
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    children: [
-                      // Watermark icon
-                      Positioned(
-                        top: -20,
-                        right: -20,
-                        child: Icon(
-                          Icons.delivery_dining,
-                          size: 120,
-                          color: Colors.purple[200]!.withOpacity(0.3),
-                        ),
-                      ),
-                      // Content
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.today, color: Colors.purple[700]),
-                              SizedBox(width: 8),
-                              Text(
-                                'Today',
-                                style: TextStyle(
-                                  color: Colors.purple[900],
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 15),
-                          Row(
-                            children: [
-                              Icon(Icons.account_balance_wallet, color: Colors.purple[700]),
-                              SizedBox(width: 8),
-                              Text(
-                                'Earnings: ₹${_user?['salary'] ?? 'Loading...'}',
-                                style: TextStyle(
-                                  color: Colors.purple[900],
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Icon(Icons.delivery_dining, color: Colors.purple[700]),
-                              SizedBox(width: 8),
-                              Text(
-                                'Rides: ${_user?['rides'] ?? 'Loading...'}',
-                                style: TextStyle(
-                                  color: Colors.purple[900],
-                                  fontSize: 18,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white,
-                        Colors.purple[50]!,
-                        Colors.purple[100]!.withOpacity(0.3),
-                      ],
-                      stops: const [0.0, 0.7, 1.0],
-                    ),
-                    borderRadius: BorderRadius.circular(15),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.purple[100]!.withOpacity(0.2),
-                        spreadRadius: 2,
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.list_alt, color: Colors.purple[700]),
-                          SizedBox(width: 8),
-                          Text(
-                            'Orders',
-                            style: TextStyle(
-                              color: Colors.purple[900],
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: _isLoading
-                            ? Center(child: CircularProgressIndicator())
-                            : ListView.builder(
-                                itemCount: _orders.length,
-                                itemBuilder: (context, index) {
-                                  OrdersSam order = _orders[index];
-                                  return Card(
-                                    margin:
-                                        const EdgeInsets.symmetric(vertical: 5),
-                                    elevation: 2,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                          colors: [
-                                            Colors.white,
-                                            Colors.purple[50]!.withOpacity(0.3),
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: ListTile(
-                                        contentPadding: const EdgeInsets.all(12),
-                                        leading: Icon(
-                                          order.isVeg ? Icons.eco : Icons.restaurant,
-                                          color: Colors.purple[700],
-                                        ),
-                                        title: Text(
-                                          '${order.itemName} (${order.itemCount}x)',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.purple[900],
-                                          ),
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text('Customer: ${order.customerName}'),
-                                            Text('Price: ₹${order.itemPrice}'),
-                                            Text('Address: ${order.address}'),
-                                            Text(
-                                              'Status: ${order.status == "completed" ? "Order to be delivered" : "Completed"}',
-                                              style: TextStyle(
-                                                color: Colors.purple[700],
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        trailing: Icon(
-                                          Icons.arrow_forward_ios,
-                                          color: Colors.purple[700],
-                                          size: 20,
-                                        ),
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  GoogleMapPage(oder: order),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
-    );
-  }
-
-  Widget _buildDrawerItem(IconData icon, String text, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.black),
-      title: Text(text, style: TextStyle(color: Colors.black)),
-      onTap: onTap,
     );
   }
 }

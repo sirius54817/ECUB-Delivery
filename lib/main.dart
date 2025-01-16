@@ -15,13 +15,27 @@ Future<void> main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Login (),
+      theme: ThemeData(
+        primarySwatch: Colors.purple,
+        scaffoldBackgroundColor: Colors.purple[50],
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          selectedIconTheme: IconThemeData(size: 24),
+          unselectedIconTheme: IconThemeData(size: 24),
+          selectedLabelStyle: TextStyle(fontSize: 12),
+          unselectedLabelStyle: TextStyle(fontSize: 12),
+          backgroundColor: Colors.white,
+          elevation: 8,
+          selectedItemColor: Colors.purple[700],
+          unselectedItemColor: Colors.grey[600],
+        ),
+      ),
+      home: Login(),
     );
   }
 }
