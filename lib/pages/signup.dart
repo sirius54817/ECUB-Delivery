@@ -12,6 +12,50 @@ class Signup extends StatelessWidget {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
+  final RegExp emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+  final RegExp phoneRegex = RegExp(r'^\+?[0-9]{10,12}$');
+  final RegExp passwordRegex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$');
+
+  String? validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Email is required';
+    }
+    if (!emailRegex.hasMatch(value)) {
+      return 'Please enter a valid email';
+    }
+    return null;
+  }
+
+  String? validatePhone(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Phone number is required';
+    }
+    if (!phoneRegex.hasMatch(value)) {
+      return 'Please enter a valid phone number';
+    }
+    return null;
+  }
+
+  String? validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+    if (!passwordRegex.hasMatch(value)) {
+      return 'Password must be at least 8 characters with letters and numbers';
+    }
+    return null;
+  }
+
+  String? validateName(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Name is required';
+    }
+    if (value.length < 2) {
+      return 'Name must be at least 2 characters';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -207,6 +251,36 @@ class Signup extends StatelessWidget {
         elevation: 0,
       ),
       onPressed: () async {
+        String? emailError = validateEmail(_emailController.text);
+        String? phoneError = validatePhone(_phoneController.text);
+        String? passwordError = validatePassword(_passwordController.text);
+        String? nameError = validateName(_nameController.text);
+
+        if (emailError != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(emailError)),
+          );
+          return;
+        }
+        if (phoneError != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(phoneError)),
+          );
+          return;
+        }
+        if (passwordError != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(passwordError)),
+          );
+          return;
+        }
+        if (nameError != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(nameError)),
+          );
+          return;
+        }
+
         await AuthService().signup(
           email: _emailController.text,
           password: _passwordController.text,

@@ -10,6 +10,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ecub_delivery/pages/home.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 
 class GoogleMapPage extends StatefulWidget {
   final OrdersSam oder;
@@ -196,12 +199,20 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   Future<void> updateOrderStatus(String status) async {
     try {
       debugPrint('Updating order status to $status');
-      debugPrint(
-          'Item ID: ${widget.oder.orderId}'); // Assuming orderId is actually itemId
+      debugPrint('Item ID: ${widget.oder.orderId}');
 
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null || currentUser.email == null) {
+        throw 'User is not logged in';
+      }
+
+      // Create a batch to perform multiple operations
+      final batch = FirebaseFirestore.instance.batch();
+
+      // Reference to the order document
       final orderRef = FirebaseFirestore.instance
           .collection('orders')
-          .doc(widget.oder.orderId); // Using orderId which is actually itemId
+          .doc(widget.oder.orderId);
 
       // Check if the document exists
       final docSnapshot = await orderRef.get();
@@ -209,40 +220,87 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
         throw 'Document with itemId ${widget.oder.orderId} does not exist';
       }
 
-      // Get the logged-in user's ID
-      final userId = await getLoggedInUserId();
-      if (userId == null) {
-        throw 'User is not logged in';
+      // Create the update data
+      Map<String, dynamic> orderUpdateData = {
+        'status': status == 'delivered' ? 'completed' : status,
+        'del_agent': currentUser.uid,
+      };
+
+      // Only add completed_at if the status is being set to completed
+      if (status == 'delivered') {
+        orderUpdateData['completed_at'] = Timestamp.now();
       }
 
-      // Update the order document with the status and del_agent ID
-      await orderRef.update({
-        'status': status,
-        'del_agent': userId,
-      });
+      // Update the order status
+      batch.update(orderRef, orderUpdateData);
 
-      setState(() {
-        widget.oder.status = status;
-      });
+      // If the order is being completed, update the agent's earnings and history
+      if (status == 'delivered') {
+        final agentQuery = await FirebaseFirestore.instance
+            .collection('delivery_agent')
+            .where('email', isEqualTo: currentUser.email)
+            .get();
 
-      if (status == 'in_transit') {
-        final url =
-            'google.navigation:q=${destinationPosition!.latitude},${destinationPosition!.longitude}&mode=d';
-        if (await canLaunch(url)) {
-          await launch(url);
-        } else {
-          throw 'Could not launch $url';
+        if (agentQuery.docs.isEmpty) {
+          throw 'Delivery agent not found';
         }
+
+        final agentRef = agentQuery.docs.first.reference;
+        
+        // Create delivery history entry
+        Map<String, dynamic> deliveryEntry = {
+          'timestamp': Timestamp.now(),
+          'amount': 30,
+          'location': widget.oder.address,
+          'orderId': widget.oder.orderId,
+          'distance': distance,
+        };
+
+        // Update agent's document
+        batch.update(agentRef, {
+          'salary': FieldValue.increment(30),
+          'rides': FieldValue.increment(1),
+          'delivery_history': FieldValue.arrayUnion([deliveryEntry]),
+        });
       }
+
+      // Commit all updates in a single batch
+      await batch.commit();
+
+      // Update local state
+      setState(() {
+        widget.oder.status = status == 'delivered' ? 'completed' : status;
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(status == 'delivered' 
+              ? 'Delivery completed successfully! Earnings updated.' 
+              : 'Order accepted'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
     } catch (e) {
       debugPrint('Error updating order status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update order status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      rethrow;
     }
   }
 
   Future<void> updateSalaryAndRides() async {
     final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-    final String agentId =
-        await getLoggedInUserId() ?? ''; // Get the logged-in user's ID
+    final String agentId = await getLoggedInUserId() ?? '';
 
     if (agentId.isEmpty) {
       debugPrint('User is not logged in');
@@ -250,8 +308,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
     }
 
     try {
-      DocumentReference agentRef =
-          _firestore.collection('delivery_agent').doc(agentId);
+      DocumentReference agentRef = _firestore.collection('delivery_agent').doc(agentId);
       DocumentSnapshot agentSnapshot = await agentRef.get();
 
       if (agentSnapshot.exists) {
@@ -262,23 +319,24 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
             ? agentSnapshot['rides']
             : (agentSnapshot['rides'] as double).toInt();
 
-        // Log current salary and rides
-        debugPrint('Current Salary: $currentSalary');
-        debugPrint('Current Rides: $currentRides');
-
         int updatedSalary = currentSalary + 30;
         int updatedRides = currentRides + 1;
 
-        // Log updated salary and rides
-        debugPrint('Updated Salary: $updatedSalary');
-        debugPrint('Updated Rides: $updatedRides');
+        // Create delivery history entry
+        Map<String, dynamic> deliveryEntry = {
+          'timestamp': FieldValue.serverTimestamp(),
+          'amount': 30, // The amount earned for this delivery
+          'location': widget.oder.address, // The delivery location
+        };
 
+        // Update the document with new salary, rides, and append to delivery history
         await agentRef.update({
           'salary': updatedSalary,
           'rides': updatedRides,
+          'delivery_history': FieldValue.arrayUnion([deliveryEntry]),
         });
 
-        debugPrint('Salary and rides updated successfully');
+        debugPrint('Salary, rides, and delivery history updated successfully');
       } else {
         debugPrint('Agent document does not exist');
       }
@@ -312,6 +370,59 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       debugPrint('Location updated in Firestore');
     } catch (e) {
       debugPrint('Error updating location in Firestore: $e');
+    }
+  }
+
+  Future<bool?> _showDeliveryConfirmationDialog() async {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirm Delivery'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Please confirm the delivery details:'),
+                SizedBox(height: 10),
+                Text('Customer: ${widget.oder.customerName}'),
+                Text('Address: ${widget.oder.address}'),
+                if (distance != null) Text('Distance: $distance'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            ElevatedButton(
+              child: Text('Confirm Delivery'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<String?> _uploadDeliveryPhoto(XFile photo) async {
+    try {
+      final path = 'delivery_photos/${widget.oder.orderId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final ref = FirebaseStorage.instance.ref().child(path);
+      
+      final file = File(photo.path);
+      await ref.putFile(file);
+      final downloadUrl = await ref.getDownloadURL();
+      return downloadUrl;
+    } catch (e) {
+      debugPrint('Error uploading photo: $e');
+      return null;
     }
   }
 
@@ -390,15 +501,21 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                         ElevatedButton(
                           onPressed: () async {
                             debugPrint('Delivered button pressed');
-                            await updateOrderStatus('delivered');
-
-                            // Update salary and rides
-                            await updateSalaryAndRides();
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => HomeScreen()),
-                            ); // Navigate back to the home screen
+                            
+                            final confirmed = await _showDeliveryConfirmationDialog();
+                            
+                            if (confirmed == true) {
+                              try {
+                                await updateOrderStatus('delivered'); // This will actually set status to 'completed'
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                                );
+                              } catch (e) {
+                                // Error is already shown in updateOrderStatus
+                                debugPrint('Failed to complete delivery: $e');
+                              }
+                            }
                           },
                           child: Text('Delivered'),
                         )
