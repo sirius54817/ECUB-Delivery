@@ -142,7 +142,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
     final origin = '${currentPosition!.latitude},${currentPosition!.longitude}';
     final destination = '${destinationPosition!.latitude},${destinationPosition!.longitude}';
     final url = 'https://maps.googleapis.com/maps/api/distancematrix/json?origins=$origin&destinations=$destination&key=$apiKey';
-
+//
     final response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -229,6 +229,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       // Only add completed_at if the status is being set to completed
       if (status == 'delivered') {
         orderUpdateData['completed_at'] = Timestamp.now();
+        orderUpdateData['status'] = 'delivered';
       }
 
       // Update the order status

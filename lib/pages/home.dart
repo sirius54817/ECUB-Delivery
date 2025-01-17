@@ -10,6 +10,9 @@ import 'package:ecub_delivery/services/auth_service.dart';
 import 'package:ecub_delivery/services/user_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 class OrdersSam {
   final String orderId;
@@ -24,6 +27,8 @@ class OrdersSam {
   final String location;
   final Map<String, dynamic> prepTime;
   final String timestamp;
+  final Map<String, dynamic>? orderSummary;
+  final String paymentStatus;
 
   OrdersSam({
     required this.orderId,
@@ -38,9 +43,33 @@ class OrdersSam {
     required this.location,
     required this.prepTime,
     required this.timestamp,
+    this.orderSummary,
+    this.paymentStatus = 'pending',
   });
 
   static OrdersSam fromMap(Map<String, dynamic> order) {
+    if (order['order_summary'] != null) {
+      final firstItemKey = (order['order_summary'] as Map).keys.first;
+      final firstItem = order['order_summary'][firstItemKey] as Map<String, dynamic>;
+
+      return OrdersSam(
+        orderId: order['order_id'] ?? '',
+        itemName: firstItem['name'] ?? '',
+        customerName: order['userId'] ?? '',
+        itemPrice: (order['totalPrice'] ?? 0).toString(),
+        address: order['address'] ?? '',
+        vendor: firstItem['storeName'] ?? '',
+        status: order['status'] ?? '',
+        itemCount: firstItem['quantity'] ?? 1,
+        isVeg: false,
+        location: order['location'] ?? '',
+        prepTime: {'min': 15, 'max': 30},
+        timestamp: order['order_time'] ?? '',
+        orderSummary: order['order_summary'],
+        paymentStatus: order['payment_status'] ?? 'pending',
+      );
+    }
+
     int itemCount;
     if (order['itemCount'] is double) {
       itemCount = (order['itemCount'] as double).toInt();
@@ -81,12 +110,15 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   bool _loading = true;
   bool _isRefreshing = false;
+  bool _isFoodOrders = true;
+  List<OrdersSam> _medicalOrders = [];
 
   @override
   void initState() {
     super.initState();
     _fetchUserData();
     _fetchOrders();
+    _fetchMedicalOrders();
   }
 
   Future<void> _fetchUserData() async {
@@ -209,6 +241,95 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _fetchMedicalOrders() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      logger.i("Starting medical orders fetch...");
+      
+      // Get current user
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) throw 'No authenticated user found';
+      logger.d("Current user: ${currentUser.email}");
+
+      // Get all user documents from me_orders collection
+      final QuerySnapshot userDocs = await FirebaseFirestore.instance
+          .collection('me_orders')
+          // .where('status', isEqualTo: 'ordered')
+          // .orderBy('order_time', descending: true)
+          .limit(100)
+          .get();
+
+      logger.d("User docs: ${userDocs.docs}");
+
+      logger.d("Found ${userDocs.docs.length} users in me_orders collection");
+
+      List<OrdersSam> allOrders = [];
+
+      // For each user, get their orders
+      for (var userDoc in userDocs.docs) {
+        logger.d("Fetching orders for user: ${userDoc.id}");
+        
+        final ordersSnapshot = await FirebaseFirestore.instance
+            .collection('me_orders')
+            .doc(userDoc.id)
+            .collection('orders')
+            .where('status', isEqualTo: 'ordered')
+            .get();
+
+        logger.d("Found ${ordersSnapshot.docs.length} orders for user ${userDoc.id}");
+
+        // Log the raw data of each order
+        for (var doc in ordersSnapshot.docs) {
+          logger.d("Raw order data: ${doc.data()}");
+        }
+
+        // Convert each order to OrdersSam object
+        List<OrdersSam> userOrders = ordersSnapshot.docs.map((doc) {
+          Map<String, dynamic> data = doc.data();
+          data['docId'] = doc.id;
+          data['userId'] = userDoc.id;
+          
+          logger.d("Processing order ${doc.id} for user ${userDoc.id}");
+          logger.d("Order data after mapping: $data");
+          
+          return OrdersSam.fromMap(data);
+        }).toList();
+
+        logger.d("Converted ${userOrders.length} orders for user ${userDoc.id}");
+        allOrders.addAll(userOrders);
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _medicalOrders = allOrders;
+        _isLoading = false;
+      });
+      
+      logger.i("Medical orders fetch completed. Total orders: ${allOrders.length}");
+      logger.d("Final medical orders: $_medicalOrders");
+    } catch (e, stackTrace) {
+      logger.e("Error fetching medical orders", error: e, stackTrace: stackTrace);
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to fetch medical orders: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _refreshOrders() async {
     if (_isRefreshing || !mounted) return;
 
@@ -217,36 +338,28 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // Refresh both orders and user data
       await Future.wait([
-        FirebaseFirestore.instance.collection('orders').get(),
         _fetchUserData(),
         _fetchOrders(),
+        _fetchMedicalOrders(),
       ]);
       
-      // Show success message in the next frame
       if (mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Data refreshed'),
-                duration: Duration(seconds: 1),
-              ),
-            );
-          }
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Data refreshed'),
+            duration: Duration(seconds: 1),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to refresh data'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh data'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -282,7 +395,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             Text(
-              _user?['name'] ?? 'Loading...',
+              (_user?['name'] ?? 'Loading...').split(' ').take(2).join(' '),
               style: TextStyle(
                 color: Colors.blue[700],
                 fontSize: 20,
@@ -450,6 +563,33 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        Spacer(),
+                        ToggleButtons(
+                          isSelected: [_isFoodOrders, !_isFoodOrders],
+                          onPressed: (index) {
+                            setState(() {
+                              _isFoodOrders = index == 0;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          selectedColor: Colors.white,
+                          fillColor: Colors.blue[700],
+                          color: Colors.blue[700],
+                          constraints: BoxConstraints(
+                            minWidth: 100,
+                            minHeight: 36,
+                          ),
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: Text('Food Orders'),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: Text('Medical Orders'),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -457,9 +597,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: _isLoading
                           ? Center(child: CircularProgressIndicator())
                           : ListView.builder(
-                              itemCount: _orders.length,
+                              itemCount: _isFoodOrders ? _orders.length : _medicalOrders.length,
                               itemBuilder: (context, index) {
-                                OrdersSam order = _orders[index];
+                                OrdersSam order = _isFoodOrders 
+                                    ? _orders[index] 
+                                    : _medicalOrders[index];
                                 return Card(
                                   margin: const EdgeInsets.symmetric(vertical: 5),
                                   elevation: 0,

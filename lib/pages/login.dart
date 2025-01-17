@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ecub_delivery/pages/navigation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Login extends StatelessWidget {
   Login({super.key});
@@ -149,21 +150,56 @@ class Login extends StatelessWidget {
         elevation: 0,
       ),
       onPressed: () async {
-        await AuthService().signin(
+        try {
+          // First check if email exists in delivery_agent collection
+          final agentSnapshot = await FirebaseFirestore.instance
+              .collection('delivery_agent')
+              .where('email', isEqualTo: _emailController.text)
+              .get();
+
+          if (agentSnapshot.docs.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Access denied: Not a registered delivery agent'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 2),
+              ),
+            );
+            return;
+          }
+
+          // If agent exists, proceed with login
+          await AuthService().signin(
             email: _emailController.text,
             password: _passwordController.text,
-            context: context);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => MainNavigation()),
-        );
+            context: context,
+          );
+
+          // If login is successful, navigate
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => MainNavigation()),
+          );
+          
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login failed: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       },
-      child: const Text("Sign In",
-          style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              letterSpacing: 1.25)),
+      child: const Text(
+        "Sign In",
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          letterSpacing: 1.25,
+        ),
+      ),
     );
   }
 

@@ -14,7 +14,9 @@ class Signup extends StatelessWidget {
 
   final RegExp emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
   final RegExp phoneRegex = RegExp(r'^\+?[0-9]{10,12}$');
-  final RegExp passwordRegex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$');
+  final RegExp passwordRegex = RegExp(
+    r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,}$'
+  );
 
   String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
@@ -40,8 +42,20 @@ class Signup extends StatelessWidget {
     if (value == null || value.isEmpty) {
       return 'Password is required';
     }
-    if (!passwordRegex.hasMatch(value)) {
-      return 'Password must be at least 8 characters with letters and numbers';
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+    if (!value.contains(RegExp(r'[A-Z]'))) {
+      return 'Password must contain at least one uppercase letter';
+    }
+    if (!value.contains(RegExp(r'[a-z]'))) {
+      return 'Password must contain at least one lowercase letter';
+    }
+    if (!value.contains(RegExp(r'[0-9]'))) {
+      return 'Password must contain at least one number';
+    }
+    if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      return 'Password must contain at least one special character';
     }
     return null;
   }
