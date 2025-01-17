@@ -34,6 +34,11 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   String? eta; // Add a variable to store the ETA
   String? distance; // Add this line to store the distance
 
+  final List<TextEditingController> _otpControllers = List.generate(
+    6,
+    (index) => TextEditingController(),
+  );
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +60,9 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   void dispose() {
     locationUpdateTimer
         ?.cancel(); // Cancel the timer when the widget is disposed
+    for (var controller in _otpControllers) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -375,6 +383,9 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   }
 
   Future<bool?> _showDeliveryConfirmationDialog() async {
+    String enteredOtp = '';
+    bool isOtpValid = false;
+
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -390,6 +401,39 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                 Text('Customer: ${widget.oder.customerName}'),
                 Text('Address: ${widget.oder.address}'),
                 if (distance != null) Text('Distance: $distance'),
+                SizedBox(height: 20),
+                Text(
+                  'Enter 6-digit OTP',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(
+                    6,
+                    (index) => SizedBox(
+                      width: 40,
+                      child: TextField(
+                        controller: _otpControllers[index],
+                        textAlign: TextAlign.center,
+                        keyboardType: TextInputType.number,
+                        maxLength: 1,
+                        decoration: InputDecoration(
+                          counterText: '',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (value) {
+                          if (value.length == 1 && index < 5) {
+                            FocusScope.of(context).nextFocus();
+                          }
+                          if (value.isEmpty && index > 0) {
+                            FocusScope.of(context).previousFocus();
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -397,13 +441,54 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
             TextButton(
               child: Text('Cancel'),
               onPressed: () {
+                // Clear OTP fields
+                _otpControllers.forEach((controller) => controller.clear());
                 Navigator.of(context).pop(false);
               },
             ),
             ElevatedButton(
-              child: Text('Confirm Delivery'),
-              onPressed: () {
-                Navigator.of(context).pop(true);
+              child: Text('Verify & Confirm'),
+              onPressed: () async {
+                // Concatenate OTP
+                enteredOtp = _otpControllers
+                    .map((controller) => controller.text)
+                    .join();
+
+                // Verify OTP from Firestore
+                try {
+                  final orderDoc = await FirebaseFirestore.instance
+                      .collection('orders')
+                      .doc(widget.oder.orderId)
+                      .get();
+
+                  if (!orderDoc.exists) {
+                    throw 'Order not found';
+                  }
+
+                  final storedOtp = orderDoc.data()?['otp'];
+                  isOtpValid = storedOtp == enteredOtp;
+
+                  if (isOtpValid) {
+                    // Clear OTP fields
+                    _otpControllers.forEach((controller) => controller.clear());
+                    Navigator.of(context).pop(true);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Invalid OTP. Please try again.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  logger.e('Error verifying OTP: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error verifying OTP: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
             ),
           ],
