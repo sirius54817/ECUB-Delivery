@@ -16,7 +16,13 @@ import 'dart:io';
 
 class GoogleMapPage extends StatefulWidget {
   final OrdersSam oder;
-  const GoogleMapPage({super.key, required this.oder});
+  final String currentAgentId;
+  
+  const GoogleMapPage({
+    super.key, 
+    required this.oder,
+    required this.currentAgentId,
+  });
 
   @override
   State<GoogleMapPage> createState() => _GoogleMapPageState();
@@ -208,6 +214,13 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
     try {
       debugPrint('Updating order status to $status');
       debugPrint('Item ID: ${widget.oder.orderId}');
+      debugPrint('Order Type: ${widget.oder.orderType}');
+
+      // Check assignment before proceeding
+      if (status == 'in_transit') {
+        final isAvailable = await _checkOrderAssignment();
+        if (!isAvailable) return;
+      }
 
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null || currentUser.email == null) {
@@ -217,10 +230,23 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       // Create a batch to perform multiple operations
       final batch = FirebaseFirestore.instance.batch();
 
-      // Reference to the order document
-      final orderRef = FirebaseFirestore.instance
-          .collection('orders')
-          .doc(widget.oder.orderId);
+      // Reference to the order document based on order type
+      final DocumentReference orderRef;
+      final String orderType = widget.oder.orderType;
+      
+      if (orderType == 'medical') {
+        // For medical orders
+        orderRef = FirebaseFirestore.instance
+            .collection('me_orders')
+            .doc(widget.oder.customerName)
+            .collection('orders')
+            .doc(widget.oder.orderId);
+      } else {
+        // For food orders (default)
+        orderRef = FirebaseFirestore.instance
+            .collection('orders')
+            .doc(widget.oder.orderId);
+      }
 
       // Check if the document exists
       final docSnapshot = await orderRef.get();
@@ -228,60 +254,41 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
         throw 'Document with itemId ${widget.oder.orderId} does not exist';
       }
 
-      // Create the update data
-      Map<String, dynamic> orderUpdateData = {
-        'status': status == 'delivered' ? 'completed' : status,
-        'del_agent': currentUser.uid,
-      };
+      // Create the update data based on order type
+      Map<String, dynamic> orderUpdateData;
+      if (orderType == 'medical') {
+        orderUpdateData = {
+          'order_status': status,
+          'del_agent': currentUser.uid,
+        };
+      } else {
+        orderUpdateData = {
+          'status': status == 'delivered' ? 'completed' : status,
+          'del_agent': currentUser.uid,
+        };
+      }
 
-      // Only add completed_at if the status is being set to completed
+      // Add completion timestamp if needed
       if (status == 'delivered') {
         orderUpdateData['completed_at'] = Timestamp.now();
-        orderUpdateData['status'] = 'delivered';
       }
 
       // Update the order status
       batch.update(orderRef, orderUpdateData);
 
-      // If the order is being completed, update the agent's earnings and history
+      // Handle delivery agent updates (earnings, etc.)
       if (status == 'delivered') {
-        final agentQuery = await FirebaseFirestore.instance
-            .collection('delivery_agent')
-            .where('email', isEqualTo: currentUser.email)
-            .get();
-
-        if (agentQuery.docs.isEmpty) {
-          throw 'Delivery agent not found';
-        }
-
-        final agentRef = agentQuery.docs.first.reference;
-        
-        // Create delivery history entry
-        Map<String, dynamic> deliveryEntry = {
-          'timestamp': Timestamp.now(),
-          'amount': 30,
-          'location': widget.oder.address,
-          'orderId': widget.oder.orderId,
-          'distance': distance,
-        };
-
-        // Update agent's document
-        batch.update(agentRef, {
-          'salary': FieldValue.increment(30),
-          'rides': FieldValue.increment(1),
-          'delivery_history': FieldValue.arrayUnion([deliveryEntry]),
-        });
+        await _handleDeliveryCompletion(batch, currentUser.email!);
       }
 
-      // Commit all updates in a single batch
+      // Commit all updates
       await batch.commit();
 
       // Update local state
       setState(() {
-        widget.oder.status = status == 'delivered' ? 'completed' : status;
+        widget.oder.status = status;
       });
 
-      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -305,6 +312,36 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       }
       rethrow;
     }
+  }
+
+  Future<void> _handleDeliveryCompletion(WriteBatch batch, String agentEmail) async {
+    final agentQuery = await FirebaseFirestore.instance
+        .collection('delivery_agent')
+        .where('email', isEqualTo: agentEmail)
+        .get();
+
+    if (agentQuery.docs.isEmpty) {
+      throw 'Delivery agent not found';
+    }
+
+    final agentRef = agentQuery.docs.first.reference;
+    
+    // Create delivery history entry
+    Map<String, dynamic> deliveryEntry = {
+      'timestamp': Timestamp.now(),
+      'amount': 30,
+      'location': widget.oder.address,
+      'orderId': widget.oder.orderId,
+      'distance': distance,
+      'type': widget.oder.orderType,
+    };
+
+    // Update agent's document
+    batch.update(agentRef, {
+      'salary': FieldValue.increment(30),
+      'rides': FieldValue.increment(1),
+      'delivery_history': FieldValue.arrayUnion([deliveryEntry]),
+    });
   }
 
   Future<void> updateSalaryAndRides() async {
@@ -734,6 +771,74 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
         polylines[id] = polyline;
       });
       debugPrint('Polyline added to the map');
+    }
+  }
+
+  Future<bool> _checkOrderAssignment() async {
+    try {
+      final DocumentReference orderRef;
+      if (widget.oder.orderType == 'medical') {
+        orderRef = FirebaseFirestore.instance
+            .collection('me_orders')
+            .doc(widget.oder.customerName)
+            .collection('orders')
+            .doc(widget.oder.orderId);
+      } else {
+        orderRef = FirebaseFirestore.instance
+            .collection('orders')
+            .doc(widget.oder.orderId);
+      }
+
+      final docSnapshot = await orderRef.get();
+      if (!docSnapshot.exists) {
+        return false;
+      }
+
+      final data = docSnapshot.data() as Map<String, dynamic>;
+      final assignedAgent = data['del_agent'];
+
+      // If there's no assigned agent, order is available
+      if (assignedAgent == null) return true;
+
+      // If this agent is assigned, order is available
+      if (assignedAgent == widget.currentAgentId) return true;
+
+      // If another agent is assigned, show dialog and return false
+      if (mounted) {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Order Unavailable'),
+              content: Text('This order has already been accepted by another delivery agent.'),
+              actions: [
+                TextButton(
+                  child: Text('Refresh Orders'),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close dialog
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => HomeScreen()),
+                    );
+                  },
+                ),
+                TextButton(
+                  child: Text('Go Back'),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close dialog
+                    Navigator.of(context).pop(); // Go back to home
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error checking order assignment: $e');
+      return false;
     }
   }
 }

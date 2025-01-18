@@ -29,6 +29,7 @@ class OrdersSam {
   final String timestamp;
   final Map<String, dynamic>? orderSummary;
   final String paymentStatus;
+  final String orderType;
 
   OrdersSam({
     required this.orderId,
@@ -45,10 +46,11 @@ class OrdersSam {
     required this.timestamp,
     this.orderSummary,
     this.paymentStatus = 'pending',
+    required this.orderType,
   });
 
-  static OrdersSam fromMap(Map<String, dynamic> order) {
-    if (order['order_summary'] != null) {
+  static OrdersSam fromMap(Map<String, dynamic> order, {bool isMedical = false}) {
+    if (isMedical) {
       final firstItemKey = (order['order_summary'] as Map).keys.first;
       final firstItem = order['order_summary'][firstItemKey] as Map<String, dynamic>;
 
@@ -57,19 +59,21 @@ class OrdersSam {
         itemName: firstItem['name'] ?? '',
         customerName: order['userId'] ?? '',
         itemPrice: (order['totalPrice'] ?? 0).toString(),
-        address: order['address'] ?? '',
+        address: order['delivery_address'] ?? '',
         vendor: firstItem['storeName'] ?? '',
         status: order['status'] ?? '',
         itemCount: firstItem['quantity'] ?? 1,
         isVeg: false,
-        location: order['location'] ?? '',
+        location: order['delivery_address'] ?? '',
         prepTime: {'min': 15, 'max': 30},
         timestamp: order['order_time'] ?? '',
         orderSummary: order['order_summary'],
         paymentStatus: order['payment_status'] ?? 'pending',
+        orderType: 'medical',
       );
     }
 
+    // Food orders
     int itemCount;
     if (order['itemCount'] is double) {
       itemCount = (order['itemCount'] as double).toInt();
@@ -92,6 +96,7 @@ class OrdersSam {
       location: order['location'] ?? '',
       prepTime: order['prepTime'] ?? {'min': 15, 'max': 30},
       timestamp: order['timestamp'] ?? '',
+      orderType: 'food',
     );
   }
 }
@@ -209,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
       List<OrdersSam> orders = ordersSnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['docId'] = doc.id; // Add the document ID to the data
-        return OrdersSam.fromMap(data);
+        return OrdersSam.fromMap(data, isMedical: false);
       }).toList();
 
       if (!mounted) return;
@@ -261,7 +266,6 @@ class _HomeScreenState extends State<HomeScreen> {
           .collection('me_orders')
           // .where('status', isEqualTo: 'ordered')
           // .orderBy('order_time', descending: true)
-          .limit(100)
           .get();
 
       logger.d("User docs: ${userDocs.docs}");
@@ -278,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
             .collection('me_orders')
             .doc(userDoc.id)
             .collection('orders')
-            .where('status', isEqualTo: 'ordered')
+            .where('order_status', isEqualTo: 'accepted')
             .get();
 
         logger.d("Found ${ordersSnapshot.docs.length} orders for user ${userDoc.id}");
@@ -297,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
           logger.d("Processing order ${doc.id} for user ${userDoc.id}");
           logger.d("Order data after mapping: $data");
           
-          return OrdersSam.fromMap(data);
+          return OrdersSam.fromMap(data, isMedical: true);
         }).toList();
 
         logger.d("Converted ${userOrders.length} orders for user ${userDoc.id}");
@@ -684,7 +688,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                           context,
                                           MaterialPageRoute(
                                             builder: (context) =>
-                                                GoogleMapPage(oder: order),
+                                                GoogleMapPage(
+                                                  oder: order,
+                                                  currentAgentId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                                                ),
                                           ),
                                         );
                                       },
