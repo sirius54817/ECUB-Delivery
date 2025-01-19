@@ -222,6 +222,12 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
         if (!isAvailable) return;
       }
 
+      // For food orders, verify OTP before delivery
+      if (status == 'delivered' && widget.oder.orderType == 'food') {
+        final confirmed = await _showDeliveryConfirmationDialog();
+        if (confirmed != true) return;
+      }
+
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null || currentUser.email == null) {
         throw 'User is not logged in';
@@ -625,17 +631,29 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                           onPressed: () async {
                             debugPrint('Delivered button pressed');
                             
-                            final confirmed = await _showDeliveryConfirmationDialog();
-                            
-                            if (confirmed == true) {
+                            if (widget.oder.orderType == 'food') {
+                              // Show OTP dialog for food orders
+                              final confirmed = await _showDeliveryConfirmationDialog();
+                              if (confirmed == true) {
+                                try {
+                                  await updateOrderStatus('delivered');
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => HomeScreen()),
+                                  );
+                                } catch (e) {
+                                  debugPrint('Failed to complete delivery: $e');
+                                }
+                              }
+                            } else {
+                              // For medical orders, directly update status
                               try {
-                                await updateOrderStatus('delivered'); // This will actually set status to 'completed'
+                                await updateOrderStatus('delivered');
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(builder: (context) => HomeScreen()),
                                 );
                               } catch (e) {
-                                // Error is already shown in updateOrderStatus
                                 debugPrint('Failed to complete delivery: $e');
                               }
                             }
@@ -776,6 +794,19 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
 
   Future<bool> _checkOrderAssignment() async {
     try {
+      // First check if we have a valid agent ID
+      if (widget.currentAgentId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: No delivery agent ID found'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return false;
+      }
+
       final DocumentReference orderRef;
       if (widget.oder.orderType == 'medical') {
         orderRef = FirebaseFirestore.instance
@@ -791,6 +822,14 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
 
       final docSnapshot = await orderRef.get();
       if (!docSnapshot.exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: Order not found'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
         return false;
       }
 
@@ -798,7 +837,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       final assignedAgent = data['del_agent'];
 
       // If there's no assigned agent, order is available
-      if (assignedAgent == null) return true;
+      if (assignedAgent == null || assignedAgent.toString().isEmpty) return true;
 
       // If this agent is assigned, order is available
       if (assignedAgent == widget.currentAgentId) return true;
@@ -838,6 +877,14 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       return false;
     } catch (e) {
       debugPrint('Error checking order assignment: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking order status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return false;
     }
   }

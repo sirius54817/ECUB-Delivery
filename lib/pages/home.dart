@@ -643,16 +643,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                       leading: Container(
                                         padding: EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: order.isVeg ? Colors.green[50] : Colors.orange[50],
+                                          color: _isFoodOrders 
+                                              ? (order.isVeg ? Colors.green[50] : Colors.orange[50])
+                                              : Colors.blue[50],  // Medical orders get blue background
                                           borderRadius: BorderRadius.circular(8),
                                           border: Border.all(
-                                            color: order.isVeg ? Colors.green[100]! : Colors.orange[100]!,
+                                            color: _isFoodOrders 
+                                                ? (order.isVeg ? Colors.green[100]! : Colors.orange[100]!)
+                                                : Colors.blue[100]!,  // Medical orders get blue border
                                             width: 1,
                                           ),
                                         ),
                                         child: Icon(
-                                          order.isVeg ? Icons.eco : Icons.restaurant,
-                                          color: order.isVeg ? Colors.green[700] : Colors.orange[700],
+                                          _isFoodOrders 
+                                              ? (order.isVeg ? Icons.eco : Icons.restaurant)
+                                              : Icons.medical_services,  // Medical icon for medical orders
+                                          color: _isFoodOrders 
+                                              ? (order.isVeg ? Colors.green[700] : Colors.orange[700])
+                                              : Colors.blue[700],  // Medical orders get blue icon
                                           size: 20,
                                         ),
                                       ),

@@ -262,11 +262,18 @@ class _OrdersPageState extends State<OrdersPage> {
                             size: 20,
                           ),
                           onTap: () {
+                            // Convert the order Map to OrdersSam object
+                            final orderObj = OrdersSam.fromMap(
+                              order,  // This is the Map<String, dynamic>
+                              isMedical: false  // Since this is food orders
+                            );
+                            
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => GoogleMapPage(
-                                  oder: OrdersSam.fromMap(order),
+                                  oder: orderObj,  // Pass the converted OrdersSam object
+                                  currentAgentId: FirebaseAuth.instance.currentUser?.uid ?? '',
                                 ),
                               ),
                             );
