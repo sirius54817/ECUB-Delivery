@@ -51,26 +51,42 @@ class OrdersSam {
 
   static OrdersSam fromMap(Map<String, dynamic> order, {bool isMedical = false}) {
     if (isMedical) {
-      final firstItemKey = (order['order_summary'] as Map).keys.first;
-      final firstItem = order['order_summary'][firstItemKey] as Map<String, dynamic>;
+      try {
+        print("Processing medical order data: $order");
+        
+        Map<String, dynamic> firstItem = {};
+        if (order['order_summary'] != null && order['order_summary'] is Map) {
+          final orderSummary = order['order_summary'] as Map;
+          if (orderSummary.isNotEmpty) {
+            final firstItemKey = orderSummary.keys.first;
+            firstItem = orderSummary[firstItemKey] as Map<String, dynamic>;
+          }
+        }
 
-      return OrdersSam(
-        orderId: order['order_id'] ?? '',
-        itemName: firstItem['name'] ?? '',
-        customerName: order['userId'] ?? '',
-        itemPrice: (order['totalPrice'] ?? 0).toString(),
-        address: order['delivery_address'] ?? '',
-        vendor: firstItem['storeName'] ?? '',
-        status: order['status'] ?? '',
-        itemCount: firstItem['quantity'] ?? 1,
-        isVeg: false,
-        location: order['delivery_address'] ?? '',
-        prepTime: {'min': 15, 'max': 30},
-        timestamp: order['order_time'] ?? '',
-        orderSummary: order['order_summary'],
-        paymentStatus: order['payment_status'] ?? 'pending',
-        orderType: 'medical',
-      );
+        // Use order_time for timestamp if available
+        final timestamp = order['order_time'] ?? order['timestamp'] ?? DateTime.now().toIso8601String();
+
+        return OrdersSam(
+          orderId: order['order_id'] ?? order['docId'] ?? '',
+          itemName: firstItem['name'] ?? 'Unknown Item',
+          customerName: order['userId'] ?? 'Unknown Customer',
+          itemPrice: (order['totalPrice'] ?? 0).toString(),
+          address: order['delivery_address'] ?? '',
+          vendor: firstItem['storeName'] ?? 'Unknown Store',
+          status: order['status'] ?? 'unknown',
+          itemCount: firstItem['quantity'] ?? 1,
+          isVeg: false,
+          location: order['delivery_address'] ?? '',
+          prepTime: {'min': 15, 'max': 30},
+          timestamp: timestamp,
+          orderSummary: order['order_summary'],
+          paymentStatus: order['payment_status'] ?? 'pending',
+          orderType: 'medical',
+        );
+      } catch (e) {
+        print("Error creating OrdersSam from medical order: $e");
+        rethrow;
+      }
     }
 
     // Food orders
@@ -111,12 +127,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _user;
   final OrdersService _ordersService = OrdersService();
-  List<OrdersSam> _orders = [];
+  List<OrdersSam> _foodOrders = [];
+  List<OrdersSam> _medicalOrders = [];
   bool _isLoading = true;
   bool _loading = true;
   bool _isRefreshing = false;
   bool _isFoodOrders = true;
-  List<OrdersSam> _medicalOrders = [];
 
   @override
   void initState() {
@@ -203,41 +219,40 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      print("Fetching orders...");
+      print("Fetching food orders...");
       
-      // Query Firestore directly for pending orders
       final QuerySnapshot ordersSnapshot = await FirebaseFirestore.instance
           .collection('orders')
           .where('status', isEqualTo: 'completed')
+          .orderBy('timestamp', descending: true)
           .get();
 
       List<OrdersSam> orders = ordersSnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        data['docId'] = doc.id; // Add the document ID to the data
+        data['docId'] = doc.id;
         return OrdersSam.fromMap(data, isMedical: false);
       }).toList();
 
       if (!mounted) return;
 
       setState(() {
-        _orders = orders;
+        _foodOrders = orders;
         _isLoading = false;
       });
-      print("Orders fetched successfully. Count: ${orders.length}");
+      print("Food orders fetched successfully. Count: ${orders.length}");
     } catch (e) {
-      print("Error fetching orders: $e");
+      print("Error fetching food orders: $e");
       if (!mounted) return;
 
       setState(() {
         _isLoading = false;
       });
       
-      // Move SnackBar to the next frame
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to fetch orders: $e'),
+              content: Text('Failed to fetch food orders: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -264,11 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // Get all user documents from me_orders collection
       final QuerySnapshot userDocs = await FirebaseFirestore.instance
           .collection('me_orders')
-          // .where('status', isEqualTo: 'ordered')
-          // .orderBy('order_time', descending: true)
           .get();
-
-      logger.d("User docs: ${userDocs.docs}");
 
       logger.d("Found ${userDocs.docs.length} users in me_orders collection");
 
@@ -323,6 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _isLoading = false;
+        _medicalOrders = [];
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -601,11 +613,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: _isLoading
                           ? Center(child: CircularProgressIndicator())
                           : ListView.builder(
-                              itemCount: _isFoodOrders ? _orders.length : _medicalOrders.length,
+                              itemCount: _isFoodOrders ? _foodOrders.length : _medicalOrders.length,
                               itemBuilder: (context, index) {
-                                OrdersSam order = _isFoodOrders 
-                                    ? _orders[index] 
-                                    : _medicalOrders[index];
+                                final order = _isFoodOrders ? _foodOrders[index] : _medicalOrders[index];
                                 return Card(
                                   margin: const EdgeInsets.symmetric(vertical: 5),
                                   elevation: 0,

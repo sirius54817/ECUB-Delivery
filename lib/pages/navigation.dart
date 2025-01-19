@@ -3,6 +3,10 @@ import 'package:ecub_delivery/pages/home.dart';
 import 'package:ecub_delivery/pages/Orders.dart';
 import 'package:ecub_delivery/pages/Earnings.dart';
 import 'package:ecub_delivery/pages/profile.dart';
+import 'dart:async';
+import 'package:location/location.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -13,6 +17,9 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
+  Timer? _locationUpdateTimer;
+  final Location _location = Location();
+  bool _isUpdatingLocation = false;  // Add this flag
   
   final List<Widget> _pages = [
     HomeScreen(),
@@ -20,6 +27,178 @@ class _MainNavigationState extends State<MainNavigation> {
     EarningsPage(),
     ProfilePage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeLocation();
+  }
+
+  Future<void> _initializeLocation() async {
+    try {
+      await _setupLocationUpdates();
+      // Do initial location update
+      await _updateAgentLocation();
+    } catch (e) {
+      debugPrint('Error initializing location: $e');
+    }
+  }
+
+  Future<void> _setupLocationUpdates() async {
+    try {
+      // Request location permissions
+      bool serviceEnabled = await _location.serviceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await _location.requestService();
+        if (!serviceEnabled) {
+          debugPrint('Location services not enabled');
+          return;
+        }
+      }
+
+      PermissionStatus permissionGranted = await _location.hasPermission();
+      if (permissionGranted == PermissionStatus.denied) {
+        permissionGranted = await _location.requestPermission();
+        if (permissionGranted != PermissionStatus.granted) {
+          debugPrint('Location permission not granted');
+          return;
+        }
+      }
+
+      // Configure location settings with more lenient values
+      await _location.changeSettings(
+        accuracy: LocationAccuracy.balanced,  // Changed from high to balanced
+        interval: 20000,  // 20 seconds
+        distanceFilter: 20,  // 20 meters
+      );
+
+      // Start periodic location updates with longer interval
+      _locationUpdateTimer = Timer.periodic(
+        Duration(seconds: 20),  // Changed from 10 to 20 seconds
+        (timer) async {
+          if (!_isUpdatingLocation) {
+            await _updateAgentLocation();
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Error setting up location updates: $e');
+    }
+  }
+
+  Future<void> _updateAgentLocation() async {
+    if (_isUpdatingLocation) return;
+    
+    try {
+      _isUpdatingLocation = true;
+      
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        debugPrint('No user logged in');
+        return;
+      }
+
+      LocationData? locationData = await _location.getLocation().timeout(
+        Duration(seconds: 30),
+      );
+
+      if (locationData.latitude == null || locationData.longitude == null) {
+        debugPrint('Invalid location data received');
+        return;
+      }
+
+      debugPrint('Location fetched successfully: ${locationData.latitude}, ${locationData.longitude}');
+
+      final batch = FirebaseFirestore.instance.batch();
+      int updatedOrders = 0;
+      
+      // Update food orders (unchanged)
+      final foodOrders = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('del_agent', isEqualTo: currentUser.uid)
+          .where('status', isEqualTo: 'in_transit')
+          .get();
+
+      for (var doc in foodOrders.docs) {
+        batch.update(doc.reference, {
+          'agent_location': GeoPoint(
+            locationData.latitude!,
+            locationData.longitude!,
+          ),
+          'last_location_update': FieldValue.serverTimestamp(),
+        });
+        updatedOrders++;
+      }
+
+      // Update medical orders with nested structure
+      try {
+        // Get medical orders where this agent is assigned
+        final medicalOrders = await FirebaseFirestore.instance
+            .collection('me_orders')
+            .get();
+
+        for (var doc in medicalOrders.docs) {
+          try {
+            debugPrint('Checking orders for customer: ${doc.id}');
+            
+            // Get the orders subcollection for this customer
+            final orderRef = FirebaseFirestore.instance
+                .collection('me_orders')
+                .doc(doc.id)  // customer name
+                .collection('orders')
+                .doc(doc.id);  // order ID
+
+            // Get the order document
+            final orderDoc = await orderRef.get();
+            
+            if (orderDoc.exists) {
+              final orderData = orderDoc.data();
+              if (orderData != null && 
+                  orderData['del_agent'] == currentUser.uid && 
+                  orderData['order_status'] == 'in_transit') {
+                
+                logger.d('Updating location for order: ${doc.id} for customer: ${doc.id}');
+                
+                batch.update(orderRef, {
+                  'agent_location': GeoPoint(
+                    locationData.latitude!,
+                    locationData.longitude!,
+                  ),
+                  'last_location_update': FieldValue.serverTimestamp(),
+                });
+                
+                updatedOrders++;
+                logger.d('Added medical order ${doc.id} to batch update');
+              }
+            }
+          } catch (e) {
+            debugPrint('Error processing medical order for customer ${doc.id}: $e');
+            continue;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error processing medical orders: $e');
+      }
+
+      if (updatedOrders > 0) {
+        await batch.commit();
+        debugPrint('Location updated successfully for $updatedOrders orders');
+      } else {
+        debugPrint('No active orders found to update location');
+      }
+
+    } catch (e) {
+      debugPrint('Error updating agent location: $e');
+    } finally {
+      _isUpdatingLocation = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _locationUpdateTimer?.cancel();
+    super.dispose();
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -145,5 +324,175 @@ class _MainNavigationState extends State<MainNavigation> {
         ),
       ),
     );
+  }
+}
+
+class LocationUpdateManager {
+  static final LocationUpdateManager _instance = LocationUpdateManager._internal();
+  factory LocationUpdateManager() => _instance;
+  LocationUpdateManager._internal();
+
+  Timer? _locationUpdateTimer;
+  final Location _location = Location();
+  bool _isUpdatingLocation = false;
+  
+  void startLocationUpdates() async {
+    await _setupLocationUpdates();
+  }
+
+  void stopLocationUpdates() {
+    _locationUpdateTimer?.cancel();
+    _locationUpdateTimer = null;
+    _isUpdatingLocation = false;
+  }
+
+  Future<void> _setupLocationUpdates() async {
+    try {
+      // Request location permissions
+      bool serviceEnabled = await _location.serviceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await _location.requestService();
+        if (!serviceEnabled) {
+          debugPrint('Location services not enabled');
+          return;
+        }
+      }
+
+      PermissionStatus permissionGranted = await _location.hasPermission();
+      if (permissionGranted == PermissionStatus.denied) {
+        permissionGranted = await _location.requestPermission();
+        if (permissionGranted != PermissionStatus.granted) {
+          debugPrint('Location permission not granted');
+          return;
+        }
+      }
+
+      // Configure location settings with more lenient values
+      await _location.changeSettings(
+        accuracy: LocationAccuracy.balanced,  // Changed from high to balanced
+        interval: 20000,  // 20 seconds
+        distanceFilter: 20,  // 20 meters
+      );
+
+      // Start periodic location updates with longer interval
+      _locationUpdateTimer = Timer.periodic(
+        Duration(seconds: 20),  // Changed from 10 to 20 seconds
+        (timer) async {
+          if (!_isUpdatingLocation) {
+            await _updateAgentLocation();
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Error setting up location updates: $e');
+    }
+  }
+
+  Future<void> _updateAgentLocation() async {
+    if (_isUpdatingLocation) return;
+    
+    try {
+      _isUpdatingLocation = true;
+      
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        debugPrint('No user logged in');
+        return;
+      }
+
+      LocationData? locationData = await _location.getLocation().timeout(
+        Duration(seconds: 30),
+      );
+
+      if (locationData.latitude == null || locationData.longitude == null) {
+        debugPrint('Invalid location data received');
+        return;
+      }
+
+      debugPrint('Location fetched successfully: ${locationData.latitude}, ${locationData.longitude}');
+
+      final batch = FirebaseFirestore.instance.batch();
+      int updatedOrders = 0;
+      
+      // Update food orders (unchanged)
+      final foodOrders = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('del_agent', isEqualTo: currentUser.uid)
+          .where('status', isEqualTo: 'in_transit')
+          .get();
+
+      for (var doc in foodOrders.docs) {
+        batch.update(doc.reference, {
+          'agent_location': GeoPoint(
+            locationData.latitude!,
+            locationData.longitude!,
+          ),
+          'last_location_update': FieldValue.serverTimestamp(),
+        });
+        updatedOrders++;
+      }
+
+      // Update medical orders with nested structure
+      try {
+        // Get medical orders where this agent is assigned
+        final medicalOrders = await FirebaseFirestore.instance
+            .collection('me_orders')
+            .get();
+
+        for (var doc in medicalOrders.docs) {
+          try {
+            debugPrint('Checking orders for customer: ${doc.id}');
+            
+            // Get the orders subcollection for this customer
+            final orderRef = FirebaseFirestore.instance
+                .collection('me_orders')
+                .doc(doc.id)  // customer name
+                .collection('orders')
+                .doc(doc.id);  // order ID
+
+            // Get the order document
+            final orderDoc = await orderRef.get();
+            
+            if (orderDoc.exists) {
+              final orderData = orderDoc.data();
+              if (orderData != null && 
+                  orderData['del_agent'] == currentUser.uid && 
+                  orderData['order_status'] == 'in_transit') {
+                
+                debugPrint('Updating location for order: ${doc.id} for customer: ${doc.id}');
+                
+                batch.update(orderRef, {
+                  'agent_location': GeoPoint(
+                    locationData.latitude!,
+                    locationData.longitude!,
+                  ),
+                  'last_location_update': FieldValue.serverTimestamp(),
+                });
+                
+                updatedOrders++;
+                debugPrint('Added medical order ${doc.id} to batch update');
+              }
+            }
+          } catch (e) {
+            debugPrint('Error processing medical order for customer ${doc.id}: $e');
+            continue;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error processing medical orders: $e');
+      }
+
+      if (updatedOrders > 0) {
+        await batch.commit();
+        debugPrint('Location updated successfully for $updatedOrders orders');
+      } else {
+        debugPrint('No active orders found to update location');
+      }
+
+    } catch (e) {
+      debugPrint('Error updating agent location: $e');
+    } finally {
+      _isUpdatingLocation = false;
+    }
   }
 }

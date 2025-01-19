@@ -14,6 +14,63 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
+class LocationUpdateManager {
+  Timer? _locationUpdateTimer;
+  final Location _location = Location();
+  bool _isUpdatingLocation = false;
+
+  void startLocationUpdates() async {
+    await _setupLocationUpdates();
+  }
+
+  void stopLocationUpdates() {
+    _locationUpdateTimer?.cancel();
+    _locationUpdateTimer = null;
+    _isUpdatingLocation = false;
+  }
+
+  Future<void> _setupLocationUpdates() async {
+    try {
+      bool serviceEnabled = await _location.serviceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await _location.requestService();
+        if (!serviceEnabled) return;
+      }
+
+      PermissionStatus permissionGranted = await _location.hasPermission();
+      if (permissionGranted == PermissionStatus.denied) {
+        permissionGranted = await _location.requestPermission();
+        if (permissionGranted != PermissionStatus.granted) return;
+      }
+
+      _locationUpdateTimer = Timer.periodic(
+        Duration(seconds: 20),
+        (timer) async {
+          if (!_isUpdatingLocation) {
+            await _updateAgentLocation();
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Error setting up location updates: $e');
+    }
+  }
+
+  Future<void> _updateAgentLocation() async {
+    if (_isUpdatingLocation) return;
+    
+    try {
+      _isUpdatingLocation = true;
+      final locationData = await _location.getLocation();
+      // Add your location update logic here
+    } catch (e) {
+      debugPrint('Error updating location: $e');
+    } finally {
+      _isUpdatingLocation = false;
+    }
+  }
+}
+
 class GoogleMapPage extends StatefulWidget {
   final OrdersSam oder;
   final String currentAgentId;
@@ -45,6 +102,10 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
     (index) => TextEditingController(),
   );
 
+  final locationManager = LocationUpdateManager();
+  bool _mapReady = false;
+  bool _orderAccepted = false;
+
   @override
   void initState() {
     super.initState();
@@ -64,8 +125,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
 
   @override
   void dispose() {
-    locationUpdateTimer
-        ?.cancel(); // Cancel the timer when the widget is disposed
+    locationManager.stopLocationUpdates();
     for (var controller in _otpControllers) {
       controller.dispose();
     }
@@ -122,32 +182,16 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   Future<void> initializeMap() async {
     try {
       await fetchCurrentLocation();
+      await fetchDestinationCoordinates();
+      final polylinePoints = await fetchPolylinePoints();
+      await generatePolyLineFromPoints(polylinePoints);
+      await fetchAndStoreEstimatedTimeOfArrival();
       
-      if (currentPosition == null) {
-        debugPrint('Error: Could not get current location');
-        return;
-      }
-
-      debugPrint('Fetching coordinates for address: ${widget.oder.address}');
-      destinationPosition = await fetchCoordinatesFromPlaceName(widget.oder.address);
-      
-      if (destinationPosition == null) {
-        debugPrint('Error: Could not convert address to coordinates');
-        return;
-      }
-      
-      debugPrint('Successfully initialized map with:'
-          '\nCurrent position: $currentPosition'
-          '\nDestination position: $destinationPosition');
-
-      final coordinates = await fetchPolylinePoints();
-      if (coordinates.isNotEmpty) {
-        await generatePolyLineFromPoints(coordinates);
-      } else {
-        debugPrint('Error: Could not generate route between points');
-      }
+      setState(() {
+        _mapReady = true;
+      });
     } catch (e) {
-      debugPrint('Error in initializeMap: $e');
+      debugPrint('Error initializing map: $e');
     }
   }
 
@@ -213,19 +257,32 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   Future<void> updateOrderStatus(String status) async {
     try {
       debugPrint('Updating order status to $status');
-      debugPrint('Item ID: ${widget.oder.orderId}');
-      debugPrint('Order Type: ${widget.oder.orderType}');
 
       // Check assignment before proceeding
       if (status == 'in_transit') {
         final isAvailable = await _checkOrderAssignment();
         if (!isAvailable) return;
+
+        // Start location updates only after order is accepted
+        if (_mapReady) {
+          locationManager.startLocationUpdates();
+          setState(() {
+            _orderAccepted = true;
+          });
+        } else {
+          debugPrint('Map not ready yet, cannot start location updates');
+          return;
+        }
       }
 
       // For food orders, verify OTP before delivery
-      if (status == 'delivered' && widget.oder.orderType == 'food') {
-        final confirmed = await _showDeliveryConfirmationDialog();
-        if (confirmed != true) return;
+      if (status == 'delivered') {
+        if (widget.oder.orderType == 'food') {
+          final confirmed = await _showDeliveryConfirmationDialog();
+          if (confirmed != true) return;
+        }
+        // Stop location updates when order is delivered
+        locationManager.stopLocationUpdates();
       }
 
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -308,6 +365,10 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
 
     } catch (e) {
       debugPrint('Error updating order status: $e');
+      // Stop location updates if there's an error
+      if (status == 'in_transit') {
+        locationManager.stopLocationUpdates();
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -556,119 +617,157 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: Stack(
-          children: [
-            currentPosition == null || destinationPosition == null
-                ? const Center(child: CircularProgressIndicator())
-                : GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: currentPosition!,
-                      zoom: 13,
-                    ),
-                    markers: {
-                      Marker(
-                        markerId: const MarkerId('currentLocation'),
-                        icon: currentLocationIcon ??
-                            BitmapDescriptor.defaultMarker,
-                        position: currentPosition!,
-                      ),
-                      Marker(
-                        markerId: const MarkerId('destinationLocation'),
-                        icon: destinationIcon ?? BitmapDescriptor.defaultMarker,
-                        position: destinationPosition!,
-                      ),
-                    },
-                    polylines: Set<Polyline>.of(polylines.values),
-                  ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 10.0,
-                      offset: Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Delivery Details',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Order ID: ${widget.oder.orderId}'),
-                    Text('Item Name: ${widget.oder.itemName}'),
-                    Text('Customer Name: ${widget.oder.customerName}'),
-                    Text('Item Price: ${widget.oder.itemPrice}'),
-                    Text('Address: ${widget.oder.address}'),
-                    if (eta != null) Text('Estimated Time: $eta'),
-                    if (distance != null) Text('Distance: $distance'),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () async {
-                            debugPrint('Accept button pressed');
-                            await updateOrderStatus('in_transit');
-                          },
-                          child: Text('Accept'),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: !_mapReady 
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading map and route...'),
+                ],
+              ),
+            )
+          : Stack(
+              children: [
+                currentPosition == null || destinationPosition == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: currentPosition!,
+                          zoom: 13,
                         ),
-                        ElevatedButton(
-                          onPressed: () async {
-                            debugPrint('Delivered button pressed');
-                            
-                            if (widget.oder.orderType == 'food') {
-                              // Show OTP dialog for food orders
-                              final confirmed = await _showDeliveryConfirmationDialog();
-                              if (confirmed == true) {
-                                try {
-                                  await updateOrderStatus('delivered');
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => HomeScreen()),
-                                  );
-                                } catch (e) {
-                                  debugPrint('Failed to complete delivery: $e');
-                                }
-                              }
-                            } else {
-                              // For medical orders, directly update status
-                              try {
-                                await updateOrderStatus('delivered');
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => HomeScreen()),
-                                );
-                              } catch (e) {
-                                debugPrint('Failed to complete delivery: $e');
-                              }
-                            }
-                          },
-                          child: Text('Delivered'),
-                        )
+                        markers: {
+                          Marker(
+                            markerId: const MarkerId('currentLocation'),
+                            icon: currentLocationIcon ??
+                                BitmapDescriptor.defaultMarker,
+                            position: currentPosition!,
+                          ),
+                          Marker(
+                            markerId: const MarkerId('destinationLocation'),
+                            icon: destinationIcon ?? BitmapDescriptor.defaultMarker,
+                            position: destinationPosition!,
+                          ),
+                        },
+                        polylines: Set<Polyline>.of(polylines.values),
+                      ),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 10.0,
+                          offset: Offset(0, -2),
+                        ),
                       ],
                     ),
-                  ],
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Delivery Details',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Order ID: ${widget.oder.orderId}'),
+                        Text('Item Name: ${widget.oder.itemName}'),
+                        Text('Customer Name: ${widget.oder.customerName}'),
+                        Text('Item Price: ${widget.oder.itemPrice}'),
+                        Text('Address: ${widget.oder.address}'),
+                        if (eta != null) Text('Estimated Time: $eta'),
+                        if (distance != null) Text('Distance: $distance'),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () async {
+                                debugPrint('Accept button pressed');
+                                await updateOrderStatus('in_transit');
+                              },
+                              child: Text('Accept'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () async {
+                                debugPrint('Delivered button pressed');
+                                
+                                if (widget.oder.orderType == 'food') {
+                                  // Show OTP dialog for food orders
+                                  final confirmed = await _showDeliveryConfirmationDialog();
+                                  if (confirmed == true) {
+                                    try {
+                                      await updateOrderStatus('delivered');
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(builder: (context) => HomeScreen()),
+                                      );
+                                    } catch (e) {
+                                      debugPrint('Failed to complete delivery: $e');
+                                    }
+                                  }
+                                } else {
+                                  // For medical orders, directly update status
+                                  try {
+                                    await updateOrderStatus('delivered');
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => HomeScreen()),
+                                    );
+                                  } catch (e) {
+                                    debugPrint('Failed to complete delivery: $e');
+                                  }
+                                }
+                              },
+                              child: Text('Delivered'),
+                            )
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                if (_orderAccepted)
+                  Positioned(
+                    top: 16,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green[100],
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'Tracking location...',
+                          style: TextStyle(
+                            color: Colors.green[900],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ],
-        ),
-      );
+    );
+  }
 
   Future<void> fetchCurrentLocation() async {
     bool serviceEnabled;
@@ -886,6 +985,27 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
         );
       }
       return false;
+    }
+  }
+
+  Future<void> fetchDestinationCoordinates() async {
+    try {
+      if (widget.oder.address.isEmpty) {
+        debugPrint('Error: Empty address provided');
+        return;
+      }
+
+      final coordinates = await fetchCoordinatesFromPlaceName(widget.oder.address);
+      if (coordinates != null) {
+        setState(() {
+          destinationPosition = coordinates;
+        });
+        debugPrint('Destination coordinates set: $coordinates');
+      } else {
+        debugPrint('Failed to get coordinates for address: ${widget.oder.address}');
+      }
+    } catch (e) {
+      debugPrint('Error in fetchDestinationCoordinates: $e');
     }
   }
 }
