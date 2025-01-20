@@ -124,7 +124,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   Map<String, dynamic>? _user;
   final OrdersService _ordersService = OrdersService();
   List<OrdersSam> _foodOrders = [];
@@ -133,13 +133,24 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   bool _isRefreshing = false;
   bool _isFoodOrders = true;
+  late AnimationController _rotationController;
 
   @override
   void initState() {
     super.initState();
+    _rotationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat();  // Makes the animation repeat indefinitely
     _fetchUserData();
     _fetchOrders();
     _fetchMedicalOrders();
+  }
+
+  @override
+  void dispose() {
+    _rotationController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchUserData() async {
@@ -617,14 +628,39 @@ class _HomeScreenState extends State<HomeScreen> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(
-                                        _isFoodOrders ? Icons.restaurant : Icons.medical_services,
-                                        size: 64,
-                                        color: Colors.grey[400],
-                                      ),
+                                      _isRefreshing && !_isFoodOrders
+                                          ? TweenAnimationBuilder(
+                                              duration: Duration(
+                                                milliseconds: _isRefreshing ? 2000 : 200, // Accelerate if refresh complete
+                                              ),
+                                              tween: Tween(begin: 0.0, end: 1.0),
+                                              onEnd: () {
+                                                // Ensure we complete at least one full rotation
+                                                if (_isRefreshing) {
+                                                  setState(() {});
+                                                }
+                                              },
+                                              builder: (context, double value, child) {
+                                                return Transform.rotate(
+                                                  angle: value * 2 * 3.14159,
+                                                  child: Icon(
+                                                    Icons.medical_services,
+                                                    size: 64,
+                                                    color: Colors.blue[400],
+                                                  ),
+                                                );
+                                              },
+                                            )
+                                          : Icon(
+                                              _isFoodOrders ? Icons.restaurant : Icons.medical_services,
+                                              size: 64,
+                                              color: Colors.grey[400],
+                                            ),
                                       SizedBox(height: 16),
                                       Text(
-                                        'No ${_isFoodOrders ? 'food' : 'medical'} orders available',
+                                        _isRefreshing && !_isFoodOrders
+                                            ? 'Fetching medical orders...'
+                                            : 'No ${_isFoodOrders ? 'food' : 'medical'} orders available',
                                         style: TextStyle(
                                           color: Colors.grey[600],
                                           fontSize: 16,
@@ -632,13 +668,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ),
                                       SizedBox(height: 8),
-                                      Text(
-                                        'Pull to refresh or tap the refresh button',
-                                        style: TextStyle(
-                                          color: Colors.grey[500],
-                                          fontSize: 14,
+                                      if (!_isLoading)
+                                        Text(
+                                          'Tap the refresh button',
+                                          style: TextStyle(
+                                            color: Colors.grey[500],
+                                            fontSize: 14,
+                                          ),
                                         ),
-                                      ),
                                     ],
                                   ),
                                 )
