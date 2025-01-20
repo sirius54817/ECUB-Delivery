@@ -612,112 +612,142 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: _isLoading
                           ? Center(child: CircularProgressIndicator())
-                          : ListView.builder(
-                              itemCount: _isFoodOrders ? _foodOrders.length : _medicalOrders.length,
-                              itemBuilder: (context, index) {
-                                final order = _isFoodOrders ? _foodOrders[index] : _medicalOrders[index];
-                                return Card(
-                                  margin: const EdgeInsets.symmetric(vertical: 5),
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                        colors: [
-                                          Colors.white,
-                                          Colors.blue[50]!.withOpacity(0.3),
-                                        ],
+                          : (_isFoodOrders ? _foodOrders : _medicalOrders).isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        _isFoodOrders ? Icons.restaurant : Icons.medical_services,
+                                        size: 64,
+                                        color: Colors.grey[400],
                                       ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.grey[300]!,
-                                          offset: Offset(0, 3),
-                                          blurRadius: 8,
-                                          spreadRadius: -2,
-                                        ),
-                                        BoxShadow(
-                                          color: Colors.grey[200]!,
-                                          offset: Offset(0, 1),
-                                          blurRadius: 4,
-                                          spreadRadius: -1,
-                                        ),
-                                      ],
-                                    ),
-                                    child: ListTile(
-                                      contentPadding: const EdgeInsets.all(12),
-                                      leading: Container(
-                                        padding: EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: _isFoodOrders 
-                                              ? (order.isVeg ? Colors.green[50] : Colors.orange[50])
-                                              : Colors.blue[50],  // Medical orders get blue background
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: _isFoodOrders 
-                                                ? (order.isVeg ? Colors.green[100]! : Colors.orange[100]!)
-                                                : Colors.blue[100]!,  // Medical orders get blue border
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          _isFoodOrders 
-                                              ? (order.isVeg ? Icons.eco : Icons.restaurant)
-                                              : Icons.medical_services,  // Medical icon for medical orders
-                                          color: _isFoodOrders 
-                                              ? (order.isVeg ? Colors.green[700] : Colors.orange[700])
-                                              : Colors.blue[700],  // Medical orders get blue icon
-                                          size: 20,
-                                        ),
-                                      ),
-                                      title: Text(
-                                        '${order.itemName} (${order.itemCount}x)',
+                                      SizedBox(height: 16),
+                                      Text(
+                                        'No ${_isFoodOrders ? 'food' : 'medical'} orders available',
                                         style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blue[900],
+                                          color: Colors.grey[600],
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                                      subtitle: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text('Customer: ${order.customerName}'),
-                                          Text('Price: ₹${order.itemPrice}'),
-                                          Text('Address: ${order.address}'),
-                                          Text(
-                                            'Status: ${order.status == "completed" ? "Order to be delivered" : "Completed"}',
-                                            style: TextStyle(
-                                              color: Colors.blue[700],
-                                              fontWeight: FontWeight.w500,
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Pull to refresh or tap the refresh button',
+                                        style: TextStyle(
+                                          color: Colors.grey[500],
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: _isFoodOrders ? _foodOrders.length : _medicalOrders.length,
+                                  itemBuilder: (context, index) {
+                                    final order = _isFoodOrders ? _foodOrders[index] : _medicalOrders[index];
+                                    return Card(
+                                      margin: const EdgeInsets.symmetric(vertical: 5),
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight,
+                                            colors: [
+                                              Colors.white,
+                                              Colors.blue[50]!.withOpacity(0.3),
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(12),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.grey[300]!,
+                                              offset: Offset(0, 3),
+                                              blurRadius: 8,
+                                              spreadRadius: -2,
+                                            ),
+                                            BoxShadow(
+                                              color: Colors.grey[200]!,
+                                              offset: Offset(0, 1),
+                                              blurRadius: 4,
+                                              spreadRadius: -1,
+                                            ),
+                                          ],
+                                        ),
+                                        child: ListTile(
+                                          contentPadding: const EdgeInsets.all(12),
+                                          leading: Container(
+                                            padding: EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: _isFoodOrders 
+                                                  ? (order.isVeg ? Colors.green[50] : Colors.orange[50])
+                                                  : Colors.blue[50],  // Medical orders get blue background
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: _isFoodOrders 
+                                                    ? (order.isVeg ? Colors.green[100]! : Colors.orange[100]!)
+                                                    : Colors.blue[100]!,  // Medical orders get blue border
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: Icon(
+                                              _isFoodOrders 
+                                                  ? (order.isVeg ? Icons.eco : Icons.restaurant)
+                                                  : Icons.medical_services,  // Medical icon for medical orders
+                                              color: _isFoodOrders 
+                                                  ? (order.isVeg ? Colors.green[700] : Colors.orange[700])
+                                                  : Colors.blue[700],  // Medical orders get blue icon
+                                              size: 20,
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                      trailing: Icon(
-                                        Icons.arrow_forward_ios,
-                                        color: Colors.blue[700],
-                                        size: 20,
-                                      ),
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                GoogleMapPage(
-                                                  oder: order,
-                                                  currentAgentId: FirebaseAuth.instance.currentUser?.uid ?? '',
-                                                ),
+                                          title: Text(
+                                            '${order.itemName} (${order.itemCount}x)',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blue[900],
+                                            ),
                                           ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                                          subtitle: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Customer: ${order.customerName}'),
+                                              Text('Price: ₹${order.itemPrice}'),
+                                              Text('Address: ${order.address}'),
+                                              Text(
+                                                'Status: ${order.status == "completed" ? "Order to be delivered" : "Completed"}',
+                                                style: TextStyle(
+                                                  color: Colors.blue[700],
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          trailing: Icon(
+                                            Icons.arrow_forward_ios,
+                                            color: Colors.blue[700],
+                                            size: 20,
+                                          ),
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    GoogleMapPage(
+                                                      oder: order,
+                                                      currentAgentId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                                                    ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                     ),
                   ],
                 ),

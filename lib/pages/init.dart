@@ -18,8 +18,10 @@ class LocationUpdateManager {
   Timer? _locationUpdateTimer;
   final Location _location = Location();
   bool _isUpdatingLocation = false;
+  OrdersSam? currentOrder;
 
-  void startLocationUpdates() async {
+  void startLocationUpdates(OrdersSam order) async {
+    currentOrder = order;
     await _setupLocationUpdates();
   }
 
@@ -27,6 +29,7 @@ class LocationUpdateManager {
     _locationUpdateTimer?.cancel();
     _locationUpdateTimer = null;
     _isUpdatingLocation = false;
+    currentOrder = null;
   }
 
   Future<void> _setupLocationUpdates() async {
@@ -46,7 +49,7 @@ class LocationUpdateManager {
       _locationUpdateTimer = Timer.periodic(
         Duration(seconds: 20),
         (timer) async {
-          if (!_isUpdatingLocation) {
+          if (!_isUpdatingLocation && currentOrder != null) {
             await _updateAgentLocation();
           }
         },
@@ -57,14 +60,89 @@ class LocationUpdateManager {
   }
 
   Future<void> _updateAgentLocation() async {
-    if (_isUpdatingLocation) return;
+    if (_isUpdatingLocation || currentOrder == null) return;
     
     try {
       _isUpdatingLocation = true;
-      final locationData = await _location.getLocation();
-      // Add your location update logic here
+      
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        debugPrint('No user logged in');
+        return;
+      }
+
+      LocationData? locationData = await _location.getLocation().timeout(
+        Duration(seconds: 30),
+      );
+
+      if (locationData.latitude == null || locationData.longitude == null) {
+        debugPrint('Invalid location data received');
+        return;
+      }
+
+      final batch = FirebaseFirestore.instance.batch();
+      int updatedOrders = 0;
+
+      // Update based on order type
+      if (currentOrder!.orderType == 'medical') {
+        try {
+          final orderRef = FirebaseFirestore.instance
+              .collection('me_orders')
+              .doc(currentOrder!.customerName)
+              .collection('orders')
+              .doc(currentOrder!.orderId);
+
+          final orderDoc = await orderRef.get();
+          
+          if (orderDoc.exists) {
+            final orderData = orderDoc.data();
+            if (orderData != null && 
+                orderData['del_agent'] == currentUser.uid && 
+                orderData['order_status'] == 'in_transit') {
+              
+              debugPrint('Updating location for medical order: ${currentOrder!.orderId} for customer: ${currentOrder!.customerName}');
+              
+              batch.update(orderRef, {
+                'agent_location': GeoPoint(
+                  locationData.latitude!,
+                  locationData.longitude!,
+                ),
+                'last_location_update': FieldValue.serverTimestamp(),
+              });
+              
+              updatedOrders++;
+            }
+          }
+        } catch (e) {
+          debugPrint('Error updating medical order location: $e');
+        }
+      } else {
+        // Food order update logic
+        try {
+          final orderRef = FirebaseFirestore.instance
+              .collection('orders')
+              .doc(currentOrder!.orderId);
+
+          batch.update(orderRef, {
+            'agent_location': GeoPoint(
+              locationData.latitude!,
+              locationData.longitude!,
+            ),
+            'last_location_update': FieldValue.serverTimestamp(),
+          });
+          updatedOrders++;
+        } catch (e) {
+          debugPrint('Error updating food order location: $e');
+        }
+      }
+
+      if (updatedOrders > 0) {
+        await batch.commit();
+        debugPrint('Location updated successfully for $updatedOrders orders');
+      }
+
     } catch (e) {
-      debugPrint('Error updating location: $e');
+      debugPrint('Error updating agent location: $e');
     } finally {
       _isUpdatingLocation = false;
     }
@@ -120,6 +198,9 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
         await fetchCurrentLocation();
         await updateLocationInFirestore();
       });
+
+      // Start location updates with the current order
+      locationManager.startLocationUpdates(widget.oder);
     });
   }
 
@@ -265,7 +346,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
 
         // Start location updates only after order is accepted
         if (_mapReady) {
-          locationManager.startLocationUpdates();
+          locationManager.startLocationUpdates(widget.oder);
           setState(() {
             _orderAccepted = true;
           });
@@ -333,7 +414,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
 
       // Add completion timestamp if needed
       if (status == 'delivered') {
-        orderUpdateData['completed_at'] = Timestamp.now();
+        orderUpdateData['completed_at'] = FieldValue.serverTimestamp();
       }
 
       // Update the order status
@@ -395,12 +476,12 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
     
     // Create delivery history entry
     Map<String, dynamic> deliveryEntry = {
-      'timestamp': Timestamp.now(),
+      'timestamp': FieldValue.serverTimestamp(),
       'amount': 30,
       'location': widget.oder.address,
-      'orderId': widget.oder.orderId,
-      'distance': distance,
-      'type': widget.oder.orderType,
+      'order_id': widget.oder.orderId,
+      'customer_name': widget.oder.customerName,
+      'order_type': widget.oder.orderType,
     };
 
     // Update agent's document
