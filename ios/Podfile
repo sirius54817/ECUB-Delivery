@@ -21,9 +21,18 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  # Other pod configurations can go here.
+  # Include Firebase dependencies
+  pod 'Firebase/Core'
+  pod 'Firebase/Firestore'
 end
 
 post_install do |installer|
   flutter_install_all_pods(installer)
+
+  # Ensure XCFramework compatibility for Firebase
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+    end
+  end
 end
