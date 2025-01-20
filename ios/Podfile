@@ -1,4 +1,3 @@
-# Uncomment this line to define a global platform for your project
 platform :ios, '13.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
@@ -22,5 +21,9 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
+  # Other pod configurations can go here.
+end
+
+post_install do |installer|
   flutter_install_all_pods(installer)
 end
