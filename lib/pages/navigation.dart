@@ -64,14 +64,14 @@ class _MainNavigationState extends State<MainNavigation> {
       // Configure location settings
       await _location.changeSettings(
         accuracy: LocationAccuracy.balanced,
-        interval: 30000,  // 30 seconds
-        distanceFilter: 30,  // 30 meters
+        interval: 5000,  // Changed from 30000 to 5000 milliseconds (5 seconds)
+        distanceFilter: 10,  // Reduced from 30 to 10 meters for more frequent updates
       );
 
       // Start periodic updates
       _locationUpdateTimer?.cancel();
       _locationUpdateTimer = Timer.periodic(
-        Duration(seconds: 30),
+        Duration(seconds: 5),  // Changed from 30 to 5 seconds
         (timer) async {
           if (!_isUpdatingLocation) {
             await _updateAgentLocation();
@@ -148,54 +148,46 @@ class _MainNavigationState extends State<MainNavigation> {
           try {
             logger.d("Processing medical order for customer: ${doc.id}");
             
-            final orderRef = FirebaseFirestore.instance
+            // Get all orders for this customer
+            final ordersSnapshot = await FirebaseFirestore.instance
                 .collection('me_orders')
                 .doc(doc.id)
                 .collection('orders')
-                .doc(doc.id);
+                .where('del_agent', isEqualTo: currentUser.uid)
+                .where('order_status', isEqualTo: 'in_transit')
+                .get();
 
-            final orderDoc = await orderRef.get();
-            
-            if (orderDoc.exists) {
-              final orderData = orderDoc.data();
-              logger.d("Order data: $orderData");
-              
-              if (orderData != null && 
-                  orderData['del_agent'] == currentUser.uid && 
-                  orderData['order_status'] == 'in_transit') {
+            // Process each order for this customer
+            for (var orderDoc in ordersSnapshot.docs) {
+              try {
+                logger.d("Processing order ${orderDoc.id} for customer ${doc.id}");
                 
-                logger.i("Updating location for medical order: ${doc.id}");
-                logger.d("Location update data: {" +
-                    "latitude: ${locationData.latitude}, " +
-                    "longitude: ${locationData.longitude}, " +
-                    "agent: ${currentUser.uid}}");
-                
-                batch.update(orderRef, {
+                final orderData = orderDoc.data();
+                logger.d("Order data: $orderData");
+
+                // Update location for this order
+                batch.update(orderDoc.reference, {
                   'agent_location': GeoPoint(
                     locationData.latitude!,
                     locationData.longitude!,
                   ),
                   'last_location_update': FieldValue.serverTimestamp(),
                 });
+                
                 updatedOrders++;
-                logger.d("Added medical order ${doc.id} to batch update");
-              } else {
-                logger.d("Skipping order ${doc.id}: " +
-                    "del_agent=${orderData?['del_agent']}, " +
-                    "status=${orderData?['order_status']}");
+                logger.i("Added medical order ${orderDoc.id} to batch update");
+              } catch (e, stackTrace) {
+                logger.e("Error processing order ${orderDoc.id}", error: e, stackTrace: stackTrace);
+                continue;
               }
-            } else {
-              logger.w("Order document ${doc.id} does not exist");
             }
           } catch (e, stackTrace) {
-            logger.e("Error processing medical order ${doc.id}", 
-                error: e, stackTrace: stackTrace);
+            logger.e("Error processing customer ${doc.id}", error: e, stackTrace: stackTrace);
             continue;
           }
         }
 
-        logger.i("Medical orders processing completed. " +
-            "Added $updatedOrders orders to batch");
+        logger.i("Medical orders processing completed. Added $updatedOrders orders to batch");
       } catch (e, stackTrace) {
         logger.e("Error updating medical orders", error: e, stackTrace: stackTrace);
       }
@@ -385,14 +377,14 @@ class LocationUpdateManager {
       // Configure location settings
       await _location.changeSettings(
         accuracy: LocationAccuracy.balanced,
-        interval: 30000,  // 30 seconds
-        distanceFilter: 30,  // 30 meters
+        interval: 5000,  // Changed from 30000 to 5000 milliseconds (5 seconds)
+        distanceFilter: 10,  // Reduced from 30 to 10 meters for more frequent updates
       );
 
       // Start periodic updates
       _locationUpdateTimer?.cancel();
       _locationUpdateTimer = Timer.periodic(
-        Duration(seconds: 30),
+        Duration(seconds: 5),  // Changed from 30 to 5 seconds
         (timer) async {
           if (!_isUpdatingLocation) {
             await _updateAgentLocation();
@@ -469,54 +461,46 @@ class LocationUpdateManager {
           try {
             logger.d("Processing medical order for customer: ${doc.id}");
             
-            final orderRef = FirebaseFirestore.instance
+            // Get all orders for this customer
+            final ordersSnapshot = await FirebaseFirestore.instance
                 .collection('me_orders')
                 .doc(doc.id)
                 .collection('orders')
-                .doc(doc.id);
+                .where('del_agent', isEqualTo: currentUser.uid)
+                .where('order_status', isEqualTo: 'in_transit')
+                .get();
 
-            final orderDoc = await orderRef.get();
-            
-            if (orderDoc.exists) {
-              final orderData = orderDoc.data();
-              logger.d("Order data: $orderData");
-              
-              if (orderData != null && 
-                  orderData['del_agent'] == currentUser.uid && 
-                  orderData['order_status'] == 'in_transit') {
+            // Process each order for this customer
+            for (var orderDoc in ordersSnapshot.docs) {
+              try {
+                logger.d("Processing order ${orderDoc.id} for customer ${doc.id}");
                 
-                logger.i("Updating location for medical order: ${doc.id}");
-                logger.d("Location update data: {" +
-                    "latitude: ${locationData.latitude}, " +
-                    "longitude: ${locationData.longitude}, " +
-                    "agent: ${currentUser.uid}}");
-                
-                batch.update(orderRef, {
+                final orderData = orderDoc.data();
+                logger.d("Order data: $orderData");
+
+                // Update location for this order
+                batch.update(orderDoc.reference, {
                   'agent_location': GeoPoint(
                     locationData.latitude!,
                     locationData.longitude!,
                   ),
                   'last_location_update': FieldValue.serverTimestamp(),
                 });
+                
                 updatedOrders++;
-                logger.d("Added medical order ${doc.id} to batch update");
-              } else {
-                logger.d("Skipping order ${doc.id}: " +
-                    "del_agent=${orderData?['del_agent']}, " +
-                    "status=${orderData?['order_status']}");
+                logger.i("Added medical order ${orderDoc.id} to batch update");
+              } catch (e, stackTrace) {
+                logger.e("Error processing order ${orderDoc.id}", error: e, stackTrace: stackTrace);
+                continue;
               }
-            } else {
-              logger.w("Order document ${doc.id} does not exist");
             }
           } catch (e, stackTrace) {
-            logger.e("Error processing medical order ${doc.id}", 
-                error: e, stackTrace: stackTrace);
+            logger.e("Error processing customer ${doc.id}", error: e, stackTrace: stackTrace);
             continue;
           }
         }
 
-        logger.i("Medical orders processing completed. " +
-            "Added $updatedOrders orders to batch");
+        logger.i("Medical orders processing completed. Added $updatedOrders orders to batch");
       } catch (e, stackTrace) {
         logger.e("Error updating medical orders", error: e, stackTrace: stackTrace);
       }

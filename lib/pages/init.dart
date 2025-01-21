@@ -194,7 +194,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       await fetchAndStoreEstimatedTimeOfArrival();
       setState(() {});
 
-      locationUpdateTimer = Timer.periodic(Duration(seconds: 1), (timer) async {
+      locationUpdateTimer = Timer.periodic(Duration(seconds: 5), (timer) async {
         await fetchCurrentLocation();
         await updateLocationInFirestore();
       });
@@ -541,29 +541,68 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
 
   Future<void> updateLocationInFirestore() async {
     try {
-      final userId = await getLoggedInUserId();
-      if (userId == null) {
-        throw 'User is not logged in';
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      if (currentPosition == null) {
+        debugPrint('Current position is null');
+        return;
       }
 
-      final orderRef = FirebaseFirestore.instance
-          .collection('orders')
-          .doc(widget.oder.orderId); // Using orderId which is actually itemId
+      // Check order type and update accordingly
+      if (widget.oder.orderType == 'medical') {
+        // For medical orders
+        try {
+          final orderRef = FirebaseFirestore.instance
+              .collection('me_orders')
+              .doc(widget.oder.customerName)  // Use customer name as doc ID
+              .collection('orders')
+              .doc(widget.oder.orderId);  // Use actual order ID
 
-      // Check if the document exists
-      final docSnapshot = await orderRef.get();
-      if (!docSnapshot.exists) {
-        throw 'Document with itemId ${widget.oder.orderId} does not exist';
+          final docSnapshot = await orderRef.get();
+          if (!docSnapshot.exists) {
+            throw 'Medical order document does not exist: ${widget.oder.orderId}';
+          }
+
+          await orderRef.update({
+            'agent_location': GeoPoint(
+              currentPosition!.latitude,
+              currentPosition!.longitude,
+            ),
+            'last_location_update': FieldValue.serverTimestamp(),
+          });
+
+          debugPrint('Updated medical order location successfully: ${widget.oder.orderId}');
+        } catch (e) {
+          debugPrint('Error updating medical order location: $e');
+        }
+      } else {
+        // For food orders (unchanged)
+        try {
+          final orderRef = FirebaseFirestore.instance
+              .collection('orders')
+              .doc(widget.oder.orderId);
+
+          final docSnapshot = await orderRef.get();
+          if (!docSnapshot.exists) {
+            throw 'Food order document does not exist: ${widget.oder.orderId}';
+          }
+
+          await orderRef.update({
+            'agent_location': GeoPoint(
+              currentPosition!.latitude,
+              currentPosition!.longitude,
+            ),
+            'last_location_update': FieldValue.serverTimestamp(),
+          });
+
+          debugPrint('Updated food order location successfully: ${widget.oder.orderId}');
+        } catch (e) {
+          debugPrint('Error updating food order location: $e');
+        }
       }
-
-      await orderRef.update({
-        'current_latitude': currentPosition!.latitude,
-        'current_longitude': currentPosition!.longitude,
-      });
-
-      debugPrint('Location updated in Firestore');
     } catch (e) {
-      debugPrint('Error updating location in Firestore: $e');
+      debugPrint('Error in updateLocationInFirestore: $e');
     }
   }
 
