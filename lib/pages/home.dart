@@ -235,7 +235,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final QuerySnapshot ordersSnapshot = await FirebaseFirestore.instance
           .collection('orders')
           .where('status', isEqualTo: 'completed')
-          .orderBy('timestamp', descending: true)
+          .orderBy('timestamp', descending: true)  // This ensures newest orders come first
           .get();
 
       List<OrdersSam> orders = ordersSnapshot.docs.map((doc) {
@@ -243,6 +243,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         data['docId'] = doc.id;
         return OrdersSam.fromMap(data, isMedical: false);
       }).toList();
+
+      // Additional sort in case some timestamps are missing
+      orders.sort((a, b) {
+        DateTime aTime;
+        DateTime bTime;
+        try {
+          aTime = DateTime.parse(a.timestamp);
+        } catch (e) {
+          aTime = DateTime(1970); // Default old date for invalid timestamps
+        }
+        try {
+          bTime = DateTime.parse(b.timestamp);
+        } catch (e) {
+          bTime = DateTime(1970); // Default old date for invalid timestamps
+        }
+        return bTime.compareTo(aTime); // Descending order (newest first)
+      });
 
       if (!mounted) return;
 
@@ -394,6 +411,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _isRefreshing = false;
         });
       }
+    }
+  }
+
+  String _formatTimestamp(String timestamp) {
+    try {
+      final DateTime dateTime = DateTime.parse(timestamp);
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return 'Time not available';
     }
   }
 
@@ -754,6 +780,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                               Text('Customer: ${order.customerName}'),
                                               Text('Price: ₹${order.itemPrice}'),
                                               Text('Address: ${order.address}'),
+                                              Text(
+                                                'Order Time: ${_formatTimestamp(order.timestamp)}',
+                                                style: TextStyle(
+                                                  color: Colors.grey[600],
+                                                  fontSize: 12,
+                                                ),
+                                              ),
                                               Text(
                                                 'Status: ${order.status == "completed" ? "Order to be delivered" : "Completed"}',
                                                 style: TextStyle(
