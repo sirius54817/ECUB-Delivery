@@ -7,6 +7,9 @@ import 'dart:async';
 import 'package:location/location.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -134,12 +137,17 @@ class _MainNavigationState extends State<MainNavigation> {
 
       // Update medical orders
       try {
+        logger.i("Starting medical orders location update");
         final medicalOrders = await FirebaseFirestore.instance
             .collection('me_orders')
             .get();
 
+        logger.d("Found ${medicalOrders.docs.length} medical order documents");
+
         for (var doc in medicalOrders.docs) {
           try {
+            logger.d("Processing medical order for customer: ${doc.id}");
+            
             final orderRef = FirebaseFirestore.instance
                 .collection('me_orders')
                 .doc(doc.id)
@@ -150,9 +158,17 @@ class _MainNavigationState extends State<MainNavigation> {
             
             if (orderDoc.exists) {
               final orderData = orderDoc.data();
+              logger.d("Order data: $orderData");
+              
               if (orderData != null && 
                   orderData['del_agent'] == currentUser.uid && 
                   orderData['order_status'] == 'in_transit') {
+                
+                logger.i("Updating location for medical order: ${doc.id}");
+                logger.d("Location update data: {" +
+                    "latitude: ${locationData.latitude}, " +
+                    "longitude: ${locationData.longitude}, " +
+                    "agent: ${currentUser.uid}}");
                 
                 batch.update(orderRef, {
                   'agent_location': GeoPoint(
@@ -162,23 +178,34 @@ class _MainNavigationState extends State<MainNavigation> {
                   'last_location_update': FieldValue.serverTimestamp(),
                 });
                 updatedOrders++;
+                logger.d("Added medical order ${doc.id} to batch update");
+              } else {
+                logger.d("Skipping order ${doc.id}: " +
+                    "del_agent=${orderData?['del_agent']}, " +
+                    "status=${orderData?['order_status']}");
               }
+            } else {
+              logger.w("Order document ${doc.id} does not exist");
             }
-          } catch (e) {
-            debugPrint('Error processing medical order: $e');
+          } catch (e, stackTrace) {
+            logger.e("Error processing medical order ${doc.id}", 
+                error: e, stackTrace: stackTrace);
             continue;
           }
         }
-      } catch (e) {
-        debugPrint('Error updating medical orders: $e');
+
+        logger.i("Medical orders processing completed. " +
+            "Added $updatedOrders orders to batch");
+      } catch (e, stackTrace) {
+        logger.e("Error updating medical orders", error: e, stackTrace: stackTrace);
       }
 
       if (updatedOrders > 0) {
         try {
           await batch.commit();
-          debugPrint('Updated location for $updatedOrders orders');
-        } catch (e) {
-          debugPrint('Error committing batch: $e');
+          logger.i('Successfully updated location for $updatedOrders orders');
+        } catch (e, stackTrace) {
+          logger.e('Error committing batch update', error: e, stackTrace: stackTrace);
         }
       }
 
@@ -431,12 +458,17 @@ class LocationUpdateManager {
 
       // Update medical orders
       try {
+        logger.i("Starting medical orders location update");
         final medicalOrders = await FirebaseFirestore.instance
             .collection('me_orders')
             .get();
 
+        logger.d("Found ${medicalOrders.docs.length} medical order documents");
+
         for (var doc in medicalOrders.docs) {
           try {
+            logger.d("Processing medical order for customer: ${doc.id}");
+            
             final orderRef = FirebaseFirestore.instance
                 .collection('me_orders')
                 .doc(doc.id)
@@ -447,9 +479,17 @@ class LocationUpdateManager {
             
             if (orderDoc.exists) {
               final orderData = orderDoc.data();
+              logger.d("Order data: $orderData");
+              
               if (orderData != null && 
                   orderData['del_agent'] == currentUser.uid && 
                   orderData['order_status'] == 'in_transit') {
+                
+                logger.i("Updating location for medical order: ${doc.id}");
+                logger.d("Location update data: {" +
+                    "latitude: ${locationData.latitude}, " +
+                    "longitude: ${locationData.longitude}, " +
+                    "agent: ${currentUser.uid}}");
                 
                 batch.update(orderRef, {
                   'agent_location': GeoPoint(
@@ -459,23 +499,34 @@ class LocationUpdateManager {
                   'last_location_update': FieldValue.serverTimestamp(),
                 });
                 updatedOrders++;
+                logger.d("Added medical order ${doc.id} to batch update");
+              } else {
+                logger.d("Skipping order ${doc.id}: " +
+                    "del_agent=${orderData?['del_agent']}, " +
+                    "status=${orderData?['order_status']}");
               }
+            } else {
+              logger.w("Order document ${doc.id} does not exist");
             }
-          } catch (e) {
-            debugPrint('Error processing medical order: $e');
+          } catch (e, stackTrace) {
+            logger.e("Error processing medical order ${doc.id}", 
+                error: e, stackTrace: stackTrace);
             continue;
           }
         }
-      } catch (e) {
-        debugPrint('Error updating medical orders: $e');
+
+        logger.i("Medical orders processing completed. " +
+            "Added $updatedOrders orders to batch");
+      } catch (e, stackTrace) {
+        logger.e("Error updating medical orders", error: e, stackTrace: stackTrace);
       }
 
       if (updatedOrders > 0) {
         try {
           await batch.commit();
-          debugPrint('Updated location for $updatedOrders orders');
-        } catch (e) {
-          debugPrint('Error committing batch: $e');
+          logger.i('Successfully updated location for $updatedOrders orders');
+        } catch (e, stackTrace) {
+          logger.e('Error committing batch update', error: e, stackTrace: stackTrace);
         }
       }
 
