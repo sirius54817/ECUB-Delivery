@@ -1,22 +1,29 @@
-import 'package:ecub_delivery/pages/login.dart';
-import 'package:ecub_delivery/services/auth_service.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:ecub_delivery/pages/login.dart';
+import 'package:ecub_delivery/services/auth_service.dart';
 
-class Signup extends StatelessWidget {
-  Signup({super.key});
+class Signup extends StatefulWidget {
+  const Signup({Key? key}) : super(key: key);
 
+  @override
+  _SignupState createState() => _SignupState();
+}
+
+class _SignupState extends State<Signup> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
+  bool _isPasswordVisible = false;
+  bool _isLoading = false;
+
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
   final RegExp emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
   final RegExp phoneRegex = RegExp(r'^\+?[0-9]{10,12}$');
-  final RegExp passwordRegex = RegExp(
-    r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,}$'
-  );
 
   String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
@@ -45,16 +52,16 @@ class Signup extends StatelessWidget {
     if (value.length < 8) {
       return 'Password must be at least 8 characters';
     }
-    if (!value.contains(RegExp(r'[A-Z]'))) {
+    if (!RegExp(r'[A-Z]').hasMatch(value)) {
       return 'Password must contain at least one uppercase letter';
     }
-    if (!value.contains(RegExp(r'[a-z]'))) {
+    if (!RegExp(r'[a-z]').hasMatch(value)) {
       return 'Password must contain at least one lowercase letter';
     }
-    if (!value.contains(RegExp(r'[0-9]'))) {
+    if (!RegExp(r'[0-9]').hasMatch(value)) {
       return 'Password must contain at least one number';
     }
-    if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) {
       return 'Password must contain at least one special character';
     }
     return null;
@@ -70,275 +77,224 @@ class Signup extends StatelessWidget {
     return null;
   }
 
+  void _signup() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await AuthService().signup(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        context: context,
+        name: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        role: '',
+        salary: 0,
+        rides: 0,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: Colors.white,
-        resizeToAvoidBottomInset: true,
-        bottomNavigationBar: _signin(context),
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          toolbarHeight: 50,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue.shade100.withOpacity(0.5),
+              Colors.purple.shade100.withOpacity(0.5)
+            ],
+          ),
         ),
-        body: SafeArea(
+        child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: Column(
-              children: [
-                Center(
-                  child: Text(
-                    'Register Account',
-                    style: GoogleFonts.raleway(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    spreadRadius: 5,
+                  )
+                ],
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Register Account',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.raleway(
                         textStyle: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 32)),
-                  ),
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 28,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    _buildTextField(
+                      controller: _nameController,
+                      labelText: 'Name',
+                      hintText: 'Enter your name',
+                      validator: validateName,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _phoneController,
+                      labelText: 'Phone Number',
+                      hintText: 'Enter your phone number',
+                      validator: validatePhone,
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _emailController,
+                      labelText: 'Email Address',
+                      hintText: 'Enter your email address',
+                      validator: validateEmail,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildPasswordField(),
+                    const SizedBox(height: 30),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _signup,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.lightGreen.shade400,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        minimumSize: const Size(double.infinity, 60),
+                        elevation: 0,
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              "Sign Up",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: 20),
+                    _buildSigninLink(context),
+                  ],
                 ),
-                const SizedBox(
-                  height: 40,
-                ),
-                _name(),
-                const SizedBox(
-                  height: 20,
-                ),
-                _phone(),
-                const SizedBox(
-                  height: 20,
-                ),
-                _emailAddress(),
-                const SizedBox(
-                  height: 20,
-                ),
-                _password(),
-                const SizedBox(
-                  height: 50,
-                ),
-                _signup(context),
-              ],
+              ),
             ),
           ),
-        ));
-  }
-
-  Widget _name() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Name',
-          style: GoogleFonts.raleway(
-              textStyle: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.normal,
-                  fontSize: 16)),
         ),
-        const SizedBox(
-          height: 16,
-        ),
-        TextField(
-          controller: _nameController,
-          decoration: InputDecoration(
-              filled: true,
-              hintText: 'Enter your name',
-              hintStyle: const TextStyle(
-                  color: Color(0xff6A6A6A),
-                  fontWeight: FontWeight.normal,
-                  fontSize: 14),
-              fillColor: const Color(0xffF7F7F9),
-              border: OutlineInputBorder(
-                  borderSide: BorderSide.none,
-                  borderRadius: BorderRadius.circular(14))),
-        )
-      ],
+      ),
     );
   }
 
-  Widget _phone() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Phone Number',
-          style: GoogleFonts.raleway(
-              textStyle: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.normal,
-                  fontSize: 16)),
-        ),
-        const SizedBox(
-          height: 16,
-        ),
-        TextField(
-          controller: _phoneController,
-          decoration: InputDecoration(
-              filled: true,
-              hintText: 'Enter your phone number',
-              hintStyle: const TextStyle(
-                  color: Color(0xff6A6A6A),
-                  fontWeight: FontWeight.normal,
-                  fontSize: 14),
-              fillColor: const Color(0xffF7F7F9),
-              border: OutlineInputBorder(
-                  borderSide: BorderSide.none,
-                  borderRadius: BorderRadius.circular(14))),
-        )
-      ],
-    );
-  }
-
-  Widget _emailAddress() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Email Address',
-          style: GoogleFonts.raleway(
-              textStyle: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.normal,
-                  fontSize: 16)),
-        ),
-        const SizedBox(
-          height: 16,
-        ),
-        TextField(
-          controller: _emailController,
-          decoration: InputDecoration(
-              filled: true,
-              hintText: 'Enter your email address',
-              hintStyle: const TextStyle(
-                  color: Color(0xff6A6A6A),
-                  fontWeight: FontWeight.normal,
-                  fontSize: 14),
-              fillColor: const Color(0xffF7F7F9),
-              border: OutlineInputBorder(
-                  borderSide: BorderSide.none,
-                  borderRadius: BorderRadius.circular(14))),
-        )
-      ],
-    );
-  }
-
-  Widget _password() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Password',
-          style: GoogleFonts.raleway(
-              textStyle: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.normal,
-                  fontSize: 16)),
-        ),
-        const SizedBox(
-          height: 16,
-        ),
-        TextField(
-          controller: _passwordController,
-          obscureText: true,
-          decoration: InputDecoration(
-              filled: true,
-              fillColor: const Color(0xffF7F7F9),
-              border: OutlineInputBorder(
-                  borderSide: BorderSide.none,
-                  borderRadius: BorderRadius.circular(14))),
-        )
-      ],
-    );
-  }
-
-  Widget _signup(BuildContext context) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xff0D6EFD),
-        shape: RoundedRectangleBorder(
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required String hintText,
+    required String? Function(String?)? validator,
+    TextInputType? keyboardType,
+  }) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+        filled: true,
+        fillColor: const Color(0xffF7F7F9),
+        border: OutlineInputBorder(
+          borderSide: BorderSide.none,
           borderRadius: BorderRadius.circular(14),
         ),
-        minimumSize: const Size(double.infinity, 60),
-        elevation: 0,
       ),
-      onPressed: () async {
-        String? emailError = validateEmail(_emailController.text);
-        String? phoneError = validatePhone(_phoneController.text);
-        String? passwordError = validatePassword(_passwordController.text);
-        String? nameError = validateName(_nameController.text);
-
-        if (emailError != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(emailError)),
-          );
-          return;
-        }
-        if (phoneError != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(phoneError)),
-          );
-          return;
-        }
-        if (passwordError != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(passwordError)),
-          );
-          return;
-        }
-        if (nameError != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(nameError)),
-          );
-          return;
-        }
-
-        await AuthService().signup(
-          email: _emailController.text,
-          password: _passwordController.text,
-          context: context,
-          name: _nameController.text,
-          phone: _phoneController.text,
-          role: '',
-          salary: 0,
-          rides: 0,
-        );
-      },
-      child: const Text("Sign Up",
-          style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
     );
   }
 
-  Widget _signin(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: RichText(
-          textAlign: TextAlign.center,
-          text: TextSpan(children: [
-            const TextSpan(
-              text: "Already Have Account? ",
-              style: TextStyle(
-                  color: Color(0xff6A6A6A),
-                  fontWeight: FontWeight.normal,
-                  fontSize: 16),
+  Widget _buildPasswordField() {
+    return TextFormField(
+      controller: _passwordController,
+      validator: validatePassword,
+      obscureText: !_isPasswordVisible,
+      decoration: InputDecoration(
+        labelText: 'Password',
+        filled: true,
+        fillColor: const Color(0xffF7F7F9),
+        border: OutlineInputBorder(
+          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+            color: Colors.grey,
+          ),
+          onPressed: () {
+            setState(() {
+              _isPasswordVisible = !_isPasswordVisible;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSigninLink(BuildContext context) {
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        children: [
+          const TextSpan(
+            text: "Already Have Account? ",
+            style: TextStyle(
+              color: Color(0xff6A6A6A),
+              fontWeight: FontWeight.normal,
+              fontSize: 16,
             ),
-            TextSpan(
-                text: "Log In",
-                style: const TextStyle(
-                    color: Color(0xff1A1D1E),
-                    fontWeight: FontWeight.normal,
-                    fontSize: 16),
-                recognizer: TapGestureRecognizer()
-                  ..onTap = () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => Login()),
-                    );
-                  }),
-          ])),
+          ),
+          TextSpan(
+            text: "Log In",
+            style: const TextStyle(
+              color: Color(0xff1A1D1E),
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const Login()),
+                );
+              },
+          ),
+        ],
+      ),
     );
   }
 }

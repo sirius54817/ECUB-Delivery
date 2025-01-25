@@ -1,235 +1,274 @@
-import 'package:ecub_delivery/pages/signup.dart';
-import 'package:ecub_delivery/services/auth_service.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:ecub_delivery/pages/signup.dart';
+import 'package:ecub_delivery/services/auth_service.dart';
 import 'package:ecub_delivery/pages/navigation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class Login extends StatelessWidget {
-  Login({super.key});
+class Login extends StatefulWidget {
+  const Login({Key? key}) : super(key: key);
 
+  @override
+  _LoginState createState() => _LoginState();
+}
+
+class _LoginState extends State<Login> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
+
+  final List<String> carouselImages = [
+    'assets/carousel1.png',
+    'assets/carousel2.png',
+    'assets/carousel3.png',
+  ];
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      resizeToAvoidBottomInset: true,
-      bottomNavigationBar: _signup(context),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        toolbarHeight: 100,
-        leading: GestureDetector(
-          onTap: () {
-            Navigator.pop(context);
-          },
-          child: Container(
-            margin: const EdgeInsets.only(left: 10),
-            decoration: const BoxDecoration(
-                color: Color(0xffF7F7F9), shape: BoxShape.circle),
-            child: const Center(
-              child: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Colors.black,
-              ),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                const SizedBox(height: 80),
+                Text(
+                  'LaneMates',
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+                Text(
+                  'Welcome Back!',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      width: 350,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          )
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _loginTextField(
+                            controller: _emailController,
+                            hintText: 'Email',
+                            shadowText: 'Enter your email',
+                          ),
+                          const SizedBox(height: 15),
+                          _loginTextField(
+                            controller: _passwordController,
+                            hintText: 'Password',
+                            shadowText: 'Enter your password',
+                            obscureText: !_isPasswordVisible,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isPasswordVisible 
+                                  ? Icons.visibility 
+                                  : Icons.visibility_off,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _isPasswordVisible = !_isPasswordVisible;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 25),
+                          _signInButton(context),
+                          const SizedBox(height: 15),
+                          _signUpLink(context),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _bottomCarousel(),
+              ],
             ),
           ),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Center(
-                child: Text(
-                  'ECUB Delivery',
-                  style: GoogleFonts.raleway(
-                      textStyle: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 32)),
+    );
+  }
+
+  Widget _bottomCarousel() {
+    return CarouselSlider(
+      options: CarouselOptions(
+        height: 220, // Increased from 120 to 220
+        autoPlay: true,
+        enlargeCenterPage: true,
+        aspectRatio: 16/9,
+        autoPlayCurve: Curves.fastOutSlowIn,
+        enableInfiniteScroll: true,
+        autoPlayAnimationDuration: const Duration(milliseconds: 800),
+      ),
+      items: carouselImages.map((imagePath) {
+        return Builder(
+          builder: (BuildContext context) {
+            return Container(
+              width: MediaQuery.of(context).size.width,
+              margin: const EdgeInsets.symmetric(horizontal: 5.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                image: DecorationImage(
+                  image: AssetImage(imagePath),
+                  fit: BoxFit.cover,
                 ),
               ),
-              const SizedBox(
-                height: 80,
-              ),
-              _emailAddress(),
-              const SizedBox(
-                height: 20,
-              ),
-              _password(),
-              const SizedBox(
-                height: 50,
-              ),
-              _signin(context),
-            ],
-          ),
+            );
+          },
+        );
+      }).toList(),
+    );
+  }
+
+  // Rest of the code remains unchanged
+  Widget _loginTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required String shadowText,
+    bool obscureText = false,
+    Widget? suffixIcon,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      decoration: InputDecoration(
+        labelText: hintText,
+        hintText: shadowText,
+        hintStyle: TextStyle(
+          color: Colors.black26,
+          fontStyle: FontStyle.italic,
         ),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.7),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        suffixIcon: suffixIcon,
       ),
     );
   }
 
-  Widget _emailAddress() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Email Address',
-          style: GoogleFonts.raleway(
-              textStyle: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.normal,
-                  fontSize: 16)),
-        ),
-        const SizedBox(
-          height: 16,
-        ),
-        TextField(
-          controller: _emailController,
-          decoration: InputDecoration(
-              filled: true,
-              hintText: 'example@gmail.com',
-              hintStyle: const TextStyle(
-                  color: Color(0xff6A6A6A),
-                  fontWeight: FontWeight.normal,
-                  fontSize: 14),
-              fillColor: const Color(0xffF7F7F9),
-              border: OutlineInputBorder(
-                  borderSide: BorderSide.none,
-                  borderRadius: BorderRadius.circular(14))),
-        )
-      ],
-    );
-  }
-
-  Widget _password() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Password',
-          style: GoogleFonts.raleway(
-              textStyle: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.normal,
-                  fontSize: 16)),
-        ),
-        const SizedBox(
-          height: 16,
-        ),
-        TextField(
-          obscureText: true,
-          controller: _passwordController,
-          decoration: InputDecoration(
-              hintText: '********',
-              filled: true,
-              fillColor: const Color(0xffF7F7F9),
-              border: OutlineInputBorder(
-                  borderSide: BorderSide.none,
-                  borderRadius: BorderRadius.circular(14))),
-        )
-      ],
-    );
-  }
-
-  Widget _signin(BuildContext context) {
+  Widget _signInButton(BuildContext context) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xff0D6EFD),
+        backgroundColor: Colors.lightGreen.shade400,
+        minimumSize: const Size(double.infinity, 55),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
         ),
-        minimumSize: const Size(double.infinity, 60),
-        elevation: 0,
       ),
-      onPressed: () async {
-        try {
-          // First check if email exists in delivery_agent collection
-          final agentSnapshot = await FirebaseFirestore.instance
-              .collection('delivery_agent')
-              .where('email', isEqualTo: _emailController.text)
-              .get();
-
-          if (agentSnapshot.docs.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Access denied: Not a registered delivery agent'),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 2),
-              ),
-            );
-            return;
-          }
-
-          // If agent exists, proceed with login
-          await AuthService().signin(
-            email: _emailController.text,
-            password: _passwordController.text,
-            context: context,
-          );
-
-          // If login is successful, navigate
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => MainNavigation()),
-          );
-          
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Login failed: ${e.toString()}'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      },
+      onPressed: _performLogin,
       child: const Text(
         "Sign In",
         style: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,
           fontSize: 16,
-          letterSpacing: 1.25,
         ),
       ),
     );
   }
 
-  Widget _signup(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+  Widget _signUpLink(BuildContext context) {
+    return Center(
       child: RichText(
-          textAlign: TextAlign.center,
-          text: TextSpan(children: [
+        text: TextSpan(
+          children: [
             const TextSpan(
               text: "New User? ",
-              style: TextStyle(
-                  color: Color(0xff6A6A6A),
-                  fontWeight: FontWeight.normal,
-                  fontSize: 16),
+              style: TextStyle(color: Colors.black54),
             ),
             TextSpan(
-                text: "Create Account",
-                style: const TextStyle(
-                    color: Color(0xff1A1D1E),
-                    fontWeight: FontWeight.normal,
-                    fontSize: 16),
-                recognizer: TapGestureRecognizer()
-                  ..onTap = () {
-                    Navigator.push(
+              text: "Create Account",
+              style: TextStyle(
+                color: Colors.blue.shade700,
+                fontWeight: FontWeight.bold,
+              ),
+              recognizer: TapGestureRecognizer()
+                ..onTap = () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => Signup()),
-                    );
-                  }),
-          ])),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  void _performLogin() async {
+    try {
+      final agentSnapshot = await FirebaseFirestore.instance
+          .collection('delivery_agent')
+          .where('email', isEqualTo: _emailController.text)
+          .get();
+
+      if (agentSnapshot.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Access denied: Not a registered delivery agent'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      await AuthService().signin(
+        email: _emailController.text,
+        password: _passwordController.text,
+        context: context,
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => MainNavigation()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Login failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
