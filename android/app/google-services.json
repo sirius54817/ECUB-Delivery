@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "732286850360",
+    "project_id": "carpool-6e70b",
+    "storage_bucket": "carpool-6e70b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:732286850360:android:09daca422e3e20b4709dcd",
+        "android_client_info": {
+          "package_name": "com.sirius.lanemate"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0vINuY_SE7T0zVQpjo5s_rNdGyvOSWbs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:732286850360:android:5619e40aa6bfa484709dcd",
+        "android_client_info": {
+          "package_name": "com.sirius.lanemate_provider"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0vINuY_SE7T0zVQpjo5s_rNdGyvOSWbs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

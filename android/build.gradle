@@ -7,7 +7,12 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:8.7.3' // Ensure compatibility with your Gradle Wrapper version
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.google.gms:google-services:4.4.2'  // Add this line
     }
+}
+
+plugins {
+    id 'com.google.gms.google-services' version '4.4.2' apply false
 }
 
 allprojects {

@@ -228,10 +228,27 @@ class _SignupState extends State<Signup> {
         labelText: labelText,
         hintText: hintText,
         filled: true,
-        fillColor: const Color(0xffF7F7F9),
+        fillColor: Colors.white.withOpacity(0.7),
         border: OutlineInputBorder(
-          borderSide: BorderSide.none,
           borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: Colors.lightGreen.shade200,
+            width: 1.5,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: Colors.lightGreen.shade200,
+            width: 1.5,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: Colors.lightGreen.shade400,
+            width: 2,
+          ),
         ),
       ),
     );
@@ -245,10 +262,27 @@ class _SignupState extends State<Signup> {
       decoration: InputDecoration(
         labelText: 'Password',
         filled: true,
-        fillColor: const Color(0xffF7F7F9),
+        fillColor: Colors.white.withOpacity(0.7),
         border: OutlineInputBorder(
-          borderSide: BorderSide.none,
           borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: Colors.lightGreen.shade200,
+            width: 1.5,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: Colors.lightGreen.shade200,
+            width: 1.5,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: Colors.lightGreen.shade400,
+            width: 2,
+          ),
         ),
         suffixIcon: IconButton(
           icon: Icon(
